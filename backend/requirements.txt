@@ -1,0 +1,3 @@
+docling
+flask
+flask-cors

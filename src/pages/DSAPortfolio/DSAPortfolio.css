@@ -1,0 +1,157 @@
+.portfolio-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 0.75rem 0 1rem;
+}
+
+.portfolio-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.portfolio-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.summary-card {
+  padding: 1.25rem;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.summary-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.summary-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.summary-card-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.summary-card-subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.summary-card-primary {
+  background-color: rgba(185, 28, 28, 0.06);
+  border: 1px solid rgba(185, 28, 28, 0.12);
+}
+
+.summary-card-success {
+  background-color: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.16);
+}
+
+.summary-card-warning {
+  background-color: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.16);
+}
+
+.portfolio-cases {
+  padding: 1.25rem;
+}
+
+.portfolio-cases-header {
+  margin-bottom: 1rem;
+}
+
+.cases-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cases-table th,
+.cases-table td {
+  padding: 0.9rem 0.75rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  text-align: left;
+}
+
+.cases-table th {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.cases-table tbody tr:hover {
+  background-color: rgba(229, 231, 235, 0.3);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.status-in-review {
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+}
+
+.status-approved {
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.status-pending {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
+.status-disbursed {
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #065f46;
+}
+
+.status-in-progress {
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #1e40af;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+@media (max-width: 960px) {
+  .portfolio-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .portfolio-page {
+    padding: 0.5rem 0 0.75rem;
+  }
+
+  .portfolio-cases {
+    padding: 1rem;
+  }
+
+  .cases-table th,
+  .cases-table td {
+    padding: 0.75rem 0.5rem;
+  }
+}

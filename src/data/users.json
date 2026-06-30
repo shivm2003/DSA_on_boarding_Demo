@@ -1,0 +1,18 @@
+[
+  {
+    "username": "ISFC10823",
+    "password": "Nishu@123456",
+    "role": "channel-manager"
+  },
+  {
+    "username": "ISFC12345",
+    "password": "Prod@123",
+    "role": "product"
+  },
+  {
+    "username": "dsamanager",
+    "password": "DSA@321",
+    "role": "dsa"
+  }
+]
+   
