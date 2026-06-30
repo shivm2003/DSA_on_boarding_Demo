@@ -28,6 +28,44 @@ const DOCUMENT_MATRIX = {
   'Other': ['Vendor Empanelment Form', 'PAN/Form 60', 'Cancelled Cheque']
 };
 
+// Data-driven document list per Entity Type based on requirement matrix image
+// Each entry: { key, label, desc, hasOcr, mandatory }
+const BASE_DOCS = [
+  { key: 'dsaApplicationUpload',      label: 'DSA Application, Agreement & Code of Conduct', desc: 'Upload signed DSA Agreement',                         hasOcr: false, mandatory: true  },
+  { key: 'stampPaperUpload',          label: 'Stamp Paper',                                   desc: 'Value should be as per Respective State',              hasOcr: false, mandatory: true  },
+  { key: 'employeeDeclarationUpload', label: 'Declaration from Employee on Relationship',      desc: 'Upload Employee Declaration document',                 hasOcr: false, mandatory: true  },
+  { key: 'cibilFormatUpload',         label: 'CIBIL Format',                                   desc: 'Upload CIBIL Format document',                          hasOcr: false, mandatory: true  },
+  { key: 'rcuFormatUpload',           label: 'RCU Format',                                     desc: 'Upload RCU Format document',                            hasOcr: false, mandatory: true  },
+  { key: 'photoUpload',               label: 'Photo (2 Recent)',                                desc: 'Hard copy also to be sent',                             hasOcr: false, mandatory: true  },
+  { key: 'panUpload',                 label: 'PAN',                                             desc: 'Upload PAN document',                                   hasOcr: true,  mandatory: true  },
+  { key: 'addressProofUpload',        label: 'KYC Document (Address Proof)',                   desc: 'Upload Address Proof (Aadhar / Voter ID / Passport)',   hasOcr: true,  mandatory: true  },
+  { key: 'bankStatementUpload',       label: 'Bank Statement (Last 6 Months)',                 desc: 'Upload Last 6 Months Bank Statement',                   hasOcr: false, mandatory: true  },
+  { key: 'dsaTrainingPhotoUpload',    label: 'DSA Training Photo',                             desc: '2 Photos with DSA team and training',                   hasOcr: false, mandatory: true  },
+  { key: 'cancelledChequeUpload',     label: 'Cancelled Cheque',                               desc: 'Upload Cancelled Cheque',                               hasOcr: false, mandatory: false },
+  { key: 'gstCertificateUpload',      label: 'GST Registration Certificate',                   desc: 'Upload GST Registration Certificate',                    hasOcr: true,  mandatory: false },
+  { key: 'msmeCertificateUpload',     label: 'MSME Udhyam Registration Certificate',           desc: 'Upload MSME Udhyam Certificate',                        hasOcr: true,  mandatory: false },
+  { key: 'vendorIncomeUpload',        label: 'Vendor Income (Balance Sheet / ITR / Income Proof)', desc: 'Upload Income Proof',                              hasOcr: false, mandatory: false },
+  { key: 'enrollmentLetterUpload',    label: 'Enrollment Letter',                               desc: 'Upload Enrollment Letter from other FI',                hasOcr: false, mandatory: false },
+  { key: 'profileCvUpload',           label: 'Profile (CV)',                                    desc: 'Upload your Profile or CV',                             hasOcr: false, mandatory: false },
+];
+
+const ENTITY_ADDITIONAL_DOCS = {
+  'Proprietorship': [
+    { key: 'firmRegistrationUpload',        label: 'Registration Certificate of Firm',   desc: 'Upload Firm Registration document',          hasOcr: false, mandatory: true  },
+    { key: 'shopEstablishmentUpload',        label: 'Shop Establishment Certificate',      desc: 'In case of Separate office',                 hasOcr: false, mandatory: false },
+    { key: 'officeAddressProofUpload',       label: 'Address Proof of Office',             desc: 'In case of Separate office',                 hasOcr: false, mandatory: false },
+  ],
+  'Partnership': [
+    { key: 'firmRegistrationUpload',         label: 'Registration Certificate of Firm',   desc: 'Upload Firm Registration document',          hasOcr: false, mandatory: true  },
+    { key: 'partnershipDeedUpload',          label: 'Partnership Deed',                    desc: 'Upload Partnership Deed document',            hasOcr: false, mandatory: true  },
+  ],
+  'Private/Public Ltd Company': [
+    { key: 'incorporationCertificateUpload', label: 'Incorporation Certificate',           desc: 'Upload Certificate of Incorporation',        hasOcr: false, mandatory: true  },
+    { key: 'aoaUpload',                      label: 'Articles of Association',             desc: 'Upload Articles of Association of company',  hasOcr: false, mandatory: true  },
+    { key: 'moaUpload',                      label: 'Memorandum of Association',           desc: 'Upload Memorandum of Association',            hasOcr: false, mandatory: true  },
+  ],
+};
+
 const INDIAN_STATES = [
   'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
   'Chandigarh', 'Chhattisgarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Dadar and Nagar Haveli', 'Daman and Diu',
@@ -80,6 +118,10 @@ const Onboarding = () => {
     udyam: false,
     gst: false
   });
+
+  // Track per-field parse state: 'idle' | 'parsing' | 'match' | 'mismatch' | 'error'
+  const [docParseStatus, setDocParseStatus] = useState({});
+  const [verificationModalData, setVerificationModalData] = useState(null);
   const [extractionStatus, setExtractionStatus] = useState({
     companyBank: false,
     partnerBanks: [],
@@ -106,13 +148,36 @@ const Onboarding = () => {
   });
   
   const [formData, setFormData] = useState({
-    // Step 0: Document Uploads
     panUpload: null,
     idProofUpload: null,
     addressProofUpload: null,
     gstCertificateUpload: null,
     msmeCertificateUpload: null,
     udyamCertificateUpload: null,
+    
+    // New Base Document Uploads
+    bankStatementUpload: null,
+    cancelledChequeUpload: null,
+    vendorIncomeUpload: null,
+    dsaApplicationUpload: null,
+    stampPaperUpload: null,
+    employeeDeclarationUpload: null,
+    cibilFormatUpload: null,
+    rcuFormatUpload: null,
+    photoUpload: null,
+    dsaTrainingPhotoUpload: null,
+    enrollmentLetterUpload: null,
+    profileCvUpload: null,
+
+    // New Conditional Document Uploads
+    firmRegistrationUpload: null,
+    shopEstablishmentUpload: null,
+    officeAddressProofUpload: null,
+    partnershipDeedUpload: null,
+    incorporationCertificateUpload: null,
+    moaUpload: null,
+    aoaUpload: null,
+
     partnerUploads: [],
     payoutOption: 'A',
     paymentMode: '',
@@ -175,6 +240,7 @@ const Onboarding = () => {
     aadharNumber: '',
     gstNumber: '',
     msmeRegistered: 'No',
+    msmeNumber: '',
     idType: 'Voter ID',
     keyClients: '',
     
@@ -305,22 +371,206 @@ const Onboarding = () => {
     }));
   };
 
-  const handleDocumentUpload = (fieldName, file) => {
+  // Map each upload field key -> expected backend document type (for validation)
+  const FIELD_DOC_TYPE_MAP = {
+    panUpload:                    'PAN',
+    addressProofUpload:           'AADHAAR',
+    gstCertificateUpload:         'GST',
+    msmeCertificateUpload:        'MSME',
+    udyamCertificateUpload:       'UDYAM',
+    cancelledChequeUpload:        'CHEQUE',
+    bankStatementUpload:          'BANK_STATEMENT',
+    vendorIncomeUpload:           'VENDOR_INCOME',
+    dsaApplicationUpload:         'DSA_APPLICATION',
+    stampPaperUpload:             'STAMP_PAPER',
+    employeeDeclarationUpload:    'EMPLOYEE_DECLARATION',
+    cibilFormatUpload:            'CIBIL',
+    rcuFormatUpload:              'RCU',
+    photoUpload:                  'ANY',
+    dsaTrainingPhotoUpload:       'ANY',
+    enrollmentLetterUpload:       'ENROLLMENT_LETTER',
+    profileCvUpload:              'PROFILE_CV',
+    firmRegistrationUpload:       'FIRM_REGISTRATION',
+    shopEstablishmentUpload:      'SHOP_ESTABLISHMENT',
+    officeAddressProofUpload:     'AADHAAR',
+    partnershipDeedUpload:        'PARTNERSHIP_DEED',
+    incorporationCertificateUpload: 'INCORPORATION_CERTIFICATE',
+    aoaUpload:                    'AOA',
+    moaUpload:                    'MOA',
+  };
+
+  // Auto-map extracted data to the correct form fields
+  const autoPopulateFields = (fieldName, docType, ext) => {
+    setFormData(prev => {
+      const updates = { ...prev };
+      if (!ext) return updates;
+
+      if (docType === 'PAN') {
+        if (ext.pan_number) {
+          const panField = prev.entityType === 'Individual' ? 'individualPan' : 'companyPan';
+          updates[panField] = ext.pan_number;
+        }
+        if (ext.name)          updates.fullName    = ext.name;
+        if (ext.father_name)   updates.fatherName  = ext.father_name;
+        if (ext.date_of_birth) updates.dob         = ext.date_of_birth;
+      }
+
+      if (docType === 'AADHAAR') {
+        if (ext.aadhaar_number) updates.aadharNumber      = ext.aadhaar_number;
+        if (ext.address)        updates.registeredAddress = ext.address;
+        if (ext.name && !updates.fullName) updates.fullName = ext.name;
+        if (ext.dob && !updates.dob)       updates.dob      = ext.dob;
+        if (ext.pincode)        updates.pincode = ext.pincode;
+        if (ext.state)          updates.state   = ext.state;
+      }
+
+      if (docType === 'GST') {
+        if (ext.gstin)      updates.gstNumber   = ext.gstin;
+        if (ext.legal_name) updates.companyName = ext.legal_name;
+      }
+
+      if (docType === 'UDYAM') {
+        if (ext.enterprise_name)   updates.companyName       = ext.enterprise_name;
+        if (ext.official_address)  updates.registeredAddress = ext.official_address;
+        if (ext.state)             updates.state             = ext.state;
+        if (ext.district)          updates.city              = ext.district;
+        if (ext.pincode)           updates.pincode           = ext.pincode;
+      }
+
+      if (docType === 'CHEQUE' || docType === 'BANK_STATEMENT') {
+        if (ext.bank_name)      updates.bankName      = ext.bank_name;
+        if (ext.account_number) updates.accountNumber = ext.account_number;
+        if (ext.ifsc_code)      updates.ifscCode      = ext.ifsc_code;
+      }
+
+      if (docType === 'MSME') {
+        updates.msmeRegistered = 'Yes';
+      }
+
+      if (docType === 'VENDOR_INCOME') {
+        if (ext.entity_name && !updates.companyName) updates.companyName = ext.entity_name;
+        if (ext.pan_number) {
+          const panField = prev.entityType === 'Individual' ? 'individualPan' : 'companyPan';
+          if (!updates[panField]) updates[panField] = ext.pan_number;
+        }
+      }
+
+      if (docType === 'DSA_APPLICATION') {
+        if (ext.applicant_name && !updates.companyName) updates.companyName = ext.applicant_name;
+        if (ext.pan_number) {
+          const panField = prev.entityType === 'Individual' ? 'individualPan' : 'companyPan';
+          if (!updates[panField]) updates[panField] = ext.pan_number;
+        }
+        if (ext.phone && !updates.phone) updates.phone = ext.phone;
+        if (ext.email && !updates.email) updates.email = ext.email;
+      }
+
+      if (docType === 'PROFILE_CV') {
+        if (ext.name && !updates.fullName) updates.fullName = ext.name;
+        if (ext.phone && !updates.phone) updates.phone = ext.phone;
+        if (ext.email && !updates.email) updates.email = ext.email;
+        if (ext.years_of_experience && !updates.yearsOfExperience) updates.yearsOfExperience = ext.years_of_experience.toString();
+      }
+
+      if (docType === 'FIRM_REGISTRATION' || docType === 'SHOP_ESTABLISHMENT' || docType === 'PARTNERSHIP_DEED') {
+        const firmName = ext.firm_name || ext.shop_name;
+        if (firmName && !updates.companyName) updates.companyName = firmName;
+        const addr = ext.registered_address || ext.shop_address;
+        if (addr && !updates.registeredAddress) updates.registeredAddress = addr;
+      }
+
+      if (docType === 'INCORPORATION_CERTIFICATE' || docType === 'AOA' || docType === 'MOA') {
+        if (ext.company_name && !updates.companyName) updates.companyName = ext.company_name;
+        if (ext.cin && !updates.cin) updates.cin = ext.cin;
+        if (ext.incorporation_date && !updates.dateOfInc) updates.dateOfInc = ext.incorporation_date;
+      }
+
+      return updates;
+    });
+  };
+
+  const handleDocumentUpload = async (fieldName, file) => {
+    if (!file) return;
+
+    // Store the file immediately so the UI shows the filename
     setFormData(prev => ({ ...prev, [fieldName]: file }));
     setExtractionStatus(prev => ({
       ...prev,
-      companyOcr: {
-        ...prev.companyOcr,
-        [fieldName]: false
-      }
+      companyOcr: { ...prev.companyOcr, [fieldName]: false }
     }));
     setOcrOutputs(prev => ({
       ...prev,
-      company: {
-        ...prev.company,
-        [fieldName]: ''
-      }
+      company: { ...prev.company, [fieldName]: '' }
     }));
+
+    const expectedDocType = FIELD_DOC_TYPE_MAP[fieldName] || 'ANY';
+    
+    // If we don't expect OCR for this document (like photos), just skip the parsing API
+    if (expectedDocType === 'ANY') {
+      setDocParseStatus(prev => {
+        const next = { ...prev };
+        delete next[fieldName];
+        return next;
+      });
+      return;
+    }
+
+    // Start auto-parse
+    setDocParseStatus(prev => ({ ...prev, [fieldName]: 'parsing' }));
+
+    const formPayload = new FormData();
+    formPayload.append('file', file);
+    formPayload.append('documentType', expectedDocType);
+
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/parse', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formPayload,
+      });
+      const result = await response.json();
+
+      if (!result.success) throw new Error(result.error || 'Parse failed');
+
+      const detectedType = result.metadata?.document_type || 'UNKNOWN';
+      const isMatch = expectedDocType === 'ANY' || detectedType === expectedDocType || detectedType === 'UNKNOWN';
+
+      // Mark OCR done
+      setExtractionStatus(prev => ({
+        ...prev,
+        companyOcr: { ...prev.companyOcr, [fieldName]: true }
+      }));
+      setOcrOutputs(prev => ({
+        ...prev,
+        company: { ...prev.company, [fieldName]: result.raw_text || '' }
+      }));
+
+      // Set match / mismatch
+      setDocParseStatus(prev => ({
+        ...prev,
+        [fieldName]: isMatch ? 'match' : 'mismatch'
+      }));
+
+      // Instead of auto-populating directly, open the verification modal
+      setVerificationModalData({
+        fieldName,
+        docType: detectedType,
+        extractedData: result.extracted_data || {},
+        editedData: result.extracted_data || {}
+      });
+
+    } catch (err) {
+      console.error('[AUTO-PARSE] Error:', err);
+      setDocParseStatus(prev => ({ ...prev, [fieldName]: 'error' }));
+    }
+  };
+
+  const handleApproveAndMap = () => {
+    if (!verificationModalData) return;
+    const { fieldName, docType, editedData } = verificationModalData;
+    autoPopulateFields(fieldName, docType, editedData);
+    setVerificationModalData(null);
   };
 
   const handlePartnerDocumentUpload = (index, fieldName, file) => {
@@ -410,19 +660,19 @@ const Onboarding = () => {
 
   const handleEntityTypeChange = (e) => {
     const value = e.target.value;
-    const isPartnership = value === 'Partnership';
+    const isMultiPerson = value === 'Partnership' || value === 'Private/Public Ltd Company';
     setExtractionStatus(prev => ({
       ...prev,
-      partnerBanks: isPartnership ? adjustStatusArray(Math.max(1, formData.numberOfPartners || 1), prev.partnerBanks) : [],
-      partnerOcr: isPartnership ? adjustPartnerStatusArray(Math.max(1, formData.numberOfPartners || 1), prev.partnerOcr, initPartnerOcrStatus) : []
+      partnerBanks: isMultiPerson ? adjustStatusArray(Math.max(1, formData.numberOfPartners || 1), prev.partnerBanks) : [],
+      partnerOcr: isMultiPerson ? adjustPartnerStatusArray(Math.max(1, formData.numberOfPartners || 1), prev.partnerOcr, initPartnerOcrStatus) : []
     }));
     setOcrOutputs(prev => ({
       ...prev,
-      partners: isPartnership ? adjustPartnerStatusArray(Math.max(1, formData.numberOfPartners || 1), prev.partners, initPartnerOcrOutput) : []
+      partners: isMultiPerson ? adjustPartnerStatusArray(Math.max(1, formData.numberOfPartners || 1), prev.partners, initPartnerOcrOutput) : []
     }));
     setFormData(prev => {
       const update = { ...prev, entityType: value };
-      if (!isPartnership) {
+      if (!isMultiPerson) {
         update.numberOfPartners = 0;
         update.partnerDetails = [];
         update.partnerBankDetails = [];
@@ -572,74 +822,165 @@ const Onboarding = () => {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
-  const simulateCompanyDocumentOCRExtraction = (fieldName) => {
+  const simulateCompanyDocumentOCRExtraction = async (fieldName) => {
+    const file = formData[fieldName];
+    if (!file) return;
+
     setActiveExtraction(`companyOcr-${fieldName}`);
-    setTimeout(() => {
-      setExtractionStatus(prev => ({
-        ...prev,
-        companyOcr: {
-          ...prev.companyOcr,
-          [fieldName]: true
-        }
-      }));
-      setOcrOutputs(prev => ({
-        ...prev,
-        company: {
-          ...prev.company,
-          [fieldName]: fieldName === 'panUpload'
-            ? 'name - Shahsi\nPAN: AMJPP1483B'
-            : fieldName === 'idProofUpload'
-            ? 'name - Shahsi\nID number extracted'
-            : fieldName === 'addressProofUpload'
-            ? 'name - Shahsi\nAddress: House No 52, Bhawanipur, Shiv Mandir'
-            : fieldName === 'gstCertificateUpload'
-            ? 'name - Shahsi\nGST Number: 27AABCU9603R1ZV'
-            : fieldName === 'msmeCertificateUpload'
-            ? 'name - Shahsi\nMSME Registered: Yes'
-            : fieldName === 'udyamCertificateUpload'
-            ? 'name - Shahsi\nUdyam Registration: Active'
-            : 'name - Shahsi'
-        }
-      }));
-      setFormData(prev => {
-        if (fieldName === 'panUpload') {
-          const panField = prev.entityType === 'Individual' ? 'individualPan' : 'companyPan';
-          return { ...prev, [panField]: prev[panField] || 'AMJPP1483B' };
-        }
-        if (fieldName === 'addressProofUpload') {
-          return {
-            ...prev,
-            registeredAddress: prev.registeredAddress || 'House No 52, Bhawanipur, Shiv Mandir',
-            state: prev.state || 'Uttar Pradesh',
-            city: prev.city || 'Varanasi',
-            pincode: prev.pincode || '221301'
-          };
-        }
-        if (fieldName === 'gstCertificateUpload') {
-          return { ...prev, gstNumber: prev.gstNumber || '27AABCU9603R1ZV' };
-        }
-        if (fieldName === 'msmeCertificateUpload') {
-          return { ...prev, msmeRegistered: 'Yes' };
-        }
-        return prev;
+    
+    // Map fieldName to backend documentType
+    let documentType = '';
+    if (fieldName === 'panUpload') documentType = 'PAN';
+    else if (fieldName === 'gstCertificateUpload') documentType = 'GST';
+    else if (fieldName === 'udyamCertificateUpload') documentType = 'UDYAM';
+    else if (fieldName === 'msmeCertificateUpload') documentType = 'MSME';
+    else if (fieldName === 'idProofUpload' || fieldName === 'addressProofUpload') documentType = 'AADHAAR';
+    
+    const data = new FormData();
+    data.append('file', file);
+    if (documentType) {
+      data.append('documentType', documentType);
+    }
+
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/parse', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: data,
       });
+      const result = await response.json();
+      
+      if (result.success) {
+        setExtractionStatus(prev => ({
+          ...prev,
+          companyOcr: {
+            ...prev.companyOcr,
+            [fieldName]: true
+          }
+        }));
+        
+        setOcrOutputs(prev => ({
+          ...prev,
+          company: {
+            ...prev.company,
+            [fieldName]: result.raw_text || result.markdown || 'Parsed successfully'
+          }
+        }));
+
+        // Auto map to form fields
+        setFormData(prev => {
+          const updates = { ...prev };
+          const ext = result.extracted_data || {};
+          
+          if (fieldName === 'panUpload' && ext.pan_number) {
+            const panField = prev.entityType === 'Individual' ? 'individualPan' : 'companyPan';
+            updates[panField] = ext.pan_number;
+            if (ext.name) updates.fullName = ext.name;
+            if (ext.date_of_birth) updates.dob = ext.date_of_birth;
+          }
+          if (fieldName === 'gstCertificateUpload' && ext.gstin) {
+            updates.gstNumber = ext.gstin;
+            if (ext.legal_name) updates.companyName = ext.legal_name;
+          }
+          if (fieldName === 'udyamCertificateUpload') {
+            if (ext.udyam_number) {
+              updates.msmeNumber = ext.udyam_number;
+              updates.msmeRegistered = 'Yes';
+            }
+            if (ext.enterprise_name) updates.companyName = ext.enterprise_name;
+            if (ext.official_address) updates.registeredAddress = ext.official_address;
+            if (ext.state) updates.state = ext.state;
+            if (ext.district) updates.city = ext.district;
+            if (ext.pincode) updates.pincode = ext.pincode;
+          }
+          if (fieldName === 'idProofUpload' || fieldName === 'addressProofUpload') {
+            if (ext.aadhaar_number) updates.idNumber = ext.aadhaar_number;
+            if (ext.address) updates.registeredAddress = ext.address;
+          }
+          if (fieldName === 'msmeCertificateUpload') {
+             updates.msmeRegistered = 'Yes';
+             if (ext.udyam_number) updates.msmeNumber = ext.udyam_number;
+          }
+          return updates;
+        });
+      }
+    } catch (error) {
+      console.error('Error parsing document:', error);
+      alert('Failed to parse document. Is the backend running?');
+    } finally {
       setActiveExtraction(null);
-    }, 1500);
+    }
   };
 
-  const simulatePartnerDocumentOCRExtraction = (index, fieldName) => {
+  const simulatePartnerDocumentOCRExtraction = async (index, fieldName) => {
+    const partner = formData.partnerUploads[index];
+    if (!partner || !partner[fieldName]) return;
+    
+    const file = partner[fieldName];
     setActiveExtraction(`partnerOcr-${index}-${fieldName}`);
-    setTimeout(() => {
-      setExtractionStatus(prev => {
-        const partnerOcr = [...prev.partnerOcr];
-        partnerOcr[index] = {
-          ...partnerOcr[index],
-          [fieldName]: true
-        };
-        return { ...prev, partnerOcr };
+    
+    let documentType = '';
+    if (fieldName === 'panUpload') documentType = 'PAN';
+    else if (fieldName === 'idProofUpload' || fieldName === 'addressProofUpload') documentType = 'AADHAAR';
+    
+    const data = new FormData();
+    data.append('file', file);
+    if (documentType) {
+      data.append('documentType', documentType);
+    }
+
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/parse', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: data,
       });
+      const result = await response.json();
+      
+      if (result.success) {
+        setExtractionStatus(prev => {
+          const partnerOcr = [...prev.partnerOcr];
+          partnerOcr[index] = {
+            ...partnerOcr[index],
+            [fieldName]: true
+          };
+          return { ...prev, partnerOcr };
+        });
+        
+        // Auto map partner details
+        setFormData(prev => {
+          const updates = { ...prev };
+          const ext = result.extracted_data || {};
+          const partnerDetails = [...updates.partnerDetails];
+          const existingPartnerDetails = partnerDetails[index] || initPartnerDetail();
+          
+          if (fieldName === 'panUpload' && ext.pan_number) {
+            existingPartnerDetails.pan = ext.pan_number;
+            if (ext.name) existingPartnerDetails.fullName = ext.name;
+            if (ext.date_of_birth) existingPartnerDetails.dob = ext.date_of_birth;
+          }
+          if ((fieldName === 'idProofUpload' || fieldName === 'addressProofUpload') && ext.aadhaar_number) {
+            existingPartnerDetails.aadharNumber = ext.aadhaar_number;
+            if (ext.name && !existingPartnerDetails.fullName) existingPartnerDetails.fullName = ext.name;
+          }
+          
+          partnerDetails[index] = existingPartnerDetails;
+          updates.partnerDetails = partnerDetails;
+          return updates;
+        });
+      }
+    } catch (error) {
+      console.error('Error parsing partner document:', error);
+      alert('Failed to parse partner document. Is the backend running?');
+    } finally {
       setActiveExtraction(null);
-    }, 1500);
+    }
   };
 
   const simulatePartnerOCRExtraction = (index) => {
@@ -820,6 +1161,7 @@ const Onboarding = () => {
       aadharNumber: data.aadharNumber || '',
       gstNumber: data.gstNumber || '',
       msmeRegistered: data.msmeRegistered === true || data.msmeRegistered === 'Yes',
+      msmeNumber: data.msmeNumber || '',
       idType: data.idType || '',
       keyClients: data.keyClients || ''
     },
@@ -862,7 +1204,7 @@ const Onboarding = () => {
     partnerUploads: Array.isArray(data.partnerUploads) ? data.partnerUploads.map(serializePartnerUpload) : []
   });
 
-  const handleFinalSubmit = () => {
+  const handleFinalSubmit = async () => {
     const submission = {
       id: `APP-${Math.floor(100 + Math.random() * 900)}`,
       name: formData.companyName || formData.fullName || 'Unknown',
@@ -875,13 +1217,24 @@ const Onboarding = () => {
     };
 
     try {
-      const existing = JSON.parse(localStorage.getItem('submissions') || '[]');
-      existing.unshift(submission);
-      localStorage.setItem('submissions', JSON.stringify(existing));
-      alert('Submission saved to Review Queue.');
+      const token = sessionStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/submissions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(submission)
+      });
+      if (response.ok) {
+        alert('Submission saved to Review Queue (Database).');
+      } else {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to save submission');
+      }
     } catch (err) {
       console.error('Failed to save submission', err);
-      alert('Failed to save submission to local storage.');
+      alert('Failed to save submission to backend database.');
     }
   };
 
@@ -914,6 +1267,45 @@ const Onboarding = () => {
   };
 
   const requiredDocs = DOCUMENT_MATRIX[formData.vendorCategory] || DOCUMENT_MATRIX['Other'];
+
+  const renderUploadField = (fieldKey, label, desc, hasOcr = false, mandatory = true) => {
+    const fileUploaded = !!formData[fieldKey];
+    return (
+      <div className="input-group full-width" key={fieldKey}>
+        <div className="doc-label-row">
+          <label>{label}</label>
+          {mandatory
+            ? <span className="badge-mandatory">Mandatory</span>
+            : <span className="badge-optional">Optional</span>
+          }
+        </div>
+        <div className="file-upload-row">
+          <div className={`file-upload-zone${fileUploaded ? ' has-file' : ''}`}>
+            {docParseStatus[fieldKey] === 'parsing' ? (
+              <div className="flex flex-col items-center justify-center text-muted" style={{ padding: '1rem' }}>
+                <Loader2 size={32} className="spin mb-2" />
+                <p>Parsing document...</p>
+              </div>
+            ) : (
+              <>
+                <FileText size={24} className="mb-2 text-muted" />
+                <p>{fileUploaded ? `✓ ${formData[fieldKey].name}` : desc}</p>
+                <input
+                  type="file"
+                  onChange={(e) => handleDocumentUpload(fieldKey, e.target.files[0])}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                />
+                {hasOcr && extractionStatus.companyOcr[fieldKey] !== undefined &&
+                  renderVerificationTag(formData[fieldKey], extractionStatus.companyOcr[fieldKey])}
+              </>
+            )}
+          </div>
+
+          {hasOcr && renderOcrOutputBox(fieldKey)}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="onboarding-page">
@@ -951,198 +1343,78 @@ const Onboarding = () => {
               <div className="input-group full-width">
                 <label>Entity Type</label>
                 <select name="entityType" value={formData.entityType} onChange={handleEntityTypeChange}>
-                  <option>Individual</option>
-                  <option>Partnership</option>
-                  <option>Proprietorship</option>
-                  <option>Firm</option>
+                  <option value="Individual">Individual</option>
+                  <option value="Proprietorship">Proprietorship</option>
+                  <option value="Partnership">Partnership</option>
+                  <option value="Private/Public Ltd Company">Private/Public Ltd Company</option>
                 </select>
               </div>
             </div>
 
             <div className="section-divider"></div>
-            <h3 className="section-subheading mt-4">Primary Document Uploads</h3>
+
+            {/* Dynamic progress tracker */}
+            {(() => {
+              const additionalDocs = ENTITY_ADDITIONAL_DOCS[formData.entityType] || [];
+              const allDocFields = [...BASE_DOCS, ...additionalDocs].map(d => d.key);
+              const uploaded = allDocFields.filter(f => !!formData[f]).length;
+              const pct = Math.round((uploaded / allDocFields.length) * 100);
+              return (
+                <div className="doc-upload-progress">
+                  <span>{uploaded} / {allDocFields.length} documents uploaded</span>
+                  <div className="doc-upload-progress-bar">
+                    <div className="doc-upload-progress-fill" style={{ width: `${pct}%` }}></div>
+                  </div>
+                  <span style={{ fontWeight: 700 }}>{pct}%</span>
+                </div>
+              );
+            })()}
+
+            {/* --- SECTION 1: Base documents --- same for ALL entity types --- */}
+            <h3 className="section-subheading mt-4">Common Required Documents</h3>
+            <p className="text-sm text-muted mb-3">These documents are required for all entity types.</p>
             <div className="form-grid">
-              <div className="input-group full-width">
-                <label>PAN</label>
-                <div className="file-upload-row">
-                  <div className="file-upload-zone">
-                    <FileText size={24} className="mb-2 text-muted" />
-                    <p>Upload PAN document</p>
-                    <input
-                      type="file"
-                      onChange={(e) => handleDocumentUpload('panUpload', e.target.files[0])}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                    {renderVerificationTag(formData.panUpload, extractionStatus.companyOcr.panUpload)}
-                    {formData.panUpload && <p className="text-success text-sm mt-2">✓ {formData.panUpload.name}</p>}
-                  </div>
-                  <div className="file-upload-actions">
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => simulateCompanyDocumentOCRExtraction('panUpload')}
-                      disabled={!formData.panUpload || activeExtraction !== null}
-                    >
-                      {isExtracting('companyOcr-panUpload') ? 'Scanning...' : 'Run OCR'}
-                    </button>
-                  </div>
-                  {renderOcrOutputBox('panUpload')}
-                </div>
-              </div>
-
-              <div className="input-group full-width">
-                <label>ID Proof</label>
-                <div className="file-upload-row">
-                  <div className="file-upload-zone">
-                    <FileText size={24} className="mb-2 text-muted" />
-                    <p>Upload ID proof (Aadhar, Voter ID, Passport, etc.)</p>
-                    <input
-                      type="file"
-                      onChange={(e) => handleDocumentUpload('idProofUpload', e.target.files[0])}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                    {renderVerificationTag(formData.idProofUpload, extractionStatus.companyOcr.idProofUpload)}
-                    {formData.idProofUpload && <p className="text-success text-sm mt-2">✓ {formData.idProofUpload.name}</p>}
-                  </div>
-                  <div className="file-upload-actions">
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => simulateCompanyDocumentOCRExtraction('idProofUpload')}
-                      disabled={!formData.idProofUpload || activeExtraction !== null}
-                    >
-                      {isExtracting('companyOcr-idProofUpload') ? 'Scanning...' : 'Run OCR'}
-                    </button>
-                  </div>
-                  {renderOcrOutputBox('idProofUpload')}
-                </div>
-              </div>
-
-              <div className="input-group full-width">
-                <label>Address Proof</label>
-                <div className="file-upload-row">
-                  <div className="file-upload-zone">
-                    <FileText size={24} className="mb-2 text-muted" />
-                    <p>Upload Address Proof (Utility Bill, Bank Statement, Rent Agreement)</p>
-                    <input
-                      type="file"
-                      onChange={(e) => handleDocumentUpload('addressProofUpload', e.target.files[0])}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                    {renderVerificationTag(formData.addressProofUpload, extractionStatus.companyOcr.addressProofUpload)}
-                    {formData.addressProofUpload && <p className="text-success text-sm mt-2">✓ {formData.addressProofUpload.name}</p>}
-                  </div>
-                  <div className="file-upload-actions">
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => simulateCompanyDocumentOCRExtraction('addressProofUpload')}
-                      disabled={!formData.addressProofUpload || activeExtraction !== null}
-                    >
-                      {isExtracting('companyOcr-addressProofUpload') ? 'Scanning...' : 'Run OCR'}
-                    </button>
-                  </div>
-                  {renderOcrOutputBox('addressProofUpload')}
-                </div>
-              </div>
-
-              <div className="input-group full-width">
-                <label>GST Certificate</label>
-                <div className="file-upload-row">
-                  <div className="file-upload-zone">
-                    <FileText size={24} className="mb-2 text-muted" />
-                    <p>Upload GST registration certificate or exemption document</p>
-                    <input
-                      type="file"
-                      onChange={(e) => handleDocumentUpload('gstCertificateUpload', e.target.files[0])}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                    {renderVerificationTag(formData.gstCertificateUpload, extractionStatus.companyOcr.gstCertificateUpload)}
-                    {formData.gstCertificateUpload && <p className="text-success text-sm mt-2">✓ {formData.gstCertificateUpload.name}</p>}
-                  </div>
-                  <div className="file-upload-actions">
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => simulateCompanyDocumentOCRExtraction('gstCertificateUpload')}
-                      disabled={!formData.gstCertificateUpload || activeExtraction !== null}
-                    >
-                      {isExtracting('companyOcr-gstCertificateUpload') ? 'Scanning...' : 'Run OCR'}
-                    </button>
-                  </div>
-                  {renderOcrOutputBox('gstCertificateUpload')}
-                </div>
-              </div>
-
-              <div className="input-group full-width">
-                <label>MSME Certificate</label>
-                <div className="file-upload-row">
-                  <div className="file-upload-zone">
-                    <FileText size={24} className="mb-2 text-muted" />
-                    <p>Upload MSME registration certificate</p>
-                    <input
-                      type="file"
-                      onChange={(e) => handleDocumentUpload('msmeCertificateUpload', e.target.files[0])}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                    {renderVerificationTag(formData.msmeCertificateUpload, extractionStatus.companyOcr.msmeCertificateUpload)}
-                    {formData.msmeCertificateUpload && <p className="text-success text-sm mt-2">✓ {formData.msmeCertificateUpload.name}</p>}
-                  </div>
-                  <div className="file-upload-actions">
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => simulateCompanyDocumentOCRExtraction('msmeCertificateUpload')}
-                      disabled={!formData.msmeCertificateUpload || activeExtraction !== null}
-                    >
-                      {isExtracting('companyOcr-msmeCertificateUpload') ? 'Scanning...' : 'Run OCR'}
-                    </button>
-                  </div>
-                  {renderOcrOutputBox('msmeCertificateUpload')}
-                </div>
-              </div>
-
-              <div className="input-group full-width">
-                <label>Udyam Certificate</label>
-                <div className="file-upload-row">
-                  <div className="file-upload-zone">
-                    <FileText size={24} className="mb-2 text-muted" />
-                    <p>Upload Udyam registration certificate</p>
-                    <input
-                      type="file"
-                      onChange={(e) => handleDocumentUpload('udyamCertificateUpload', e.target.files[0])}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                    {renderVerificationTag(formData.udyamCertificateUpload, extractionStatus.companyOcr.udyamCertificateUpload)}
-                    {formData.udyamCertificateUpload && <p className="text-success text-sm mt-2">✓ {formData.udyamCertificateUpload.name}</p>}
-                  </div>
-                  <div className="file-upload-actions">
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => simulateCompanyDocumentOCRExtraction('udyamCertificateUpload')}
-                      disabled={!formData.udyamCertificateUpload || activeExtraction !== null}
-                    >
-                      {isExtracting('companyOcr-udyamCertificateUpload') ? 'Scanning...' : 'Run OCR'}
-                    </button>
-                  </div>
-                  {renderOcrOutputBox('udyamCertificateUpload')}
-                </div>
-              </div>
+              {BASE_DOCS.map(doc =>
+                renderUploadField(doc.key, doc.label, doc.desc, doc.hasOcr, doc.mandatory)
+              )}
             </div>
 
-            {formData.entityType === 'Partnership' && (
+            {/* --- SECTION 2: Additional docs based on Entity Type --- */}
+            {ENTITY_ADDITIONAL_DOCS[formData.entityType] && (
+              <>
+                <div className="section-divider mt-6"></div>
+                <h3 className="section-subheading mt-4">
+                  Additional Documents — {formData.entityType}
+                </h3>
+                <p className="text-sm text-muted mb-3">
+                  {formData.entityType === 'Proprietorship' && 'Required for Proprietorship Firm registration.'}
+                  {formData.entityType === 'Partnership' && 'Required for all partners of the Partnership Firm.'}
+                  {formData.entityType === 'Private/Public Ltd Company' && 'Required for company incorporation and directors.'}
+                </p>
+                <div className="form-grid">
+                  {ENTITY_ADDITIONAL_DOCS[formData.entityType].map(doc =>
+                    renderUploadField(doc.key, doc.label, doc.desc, doc.hasOcr, doc.mandatory)
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Note: ID Proof of Partners/Directors is handled in the dynamic Partner section below */}
+
+            {(formData.entityType === 'Partnership' || formData.entityType === 'Private/Public Ltd Company') && (
               <>
                 <div className="section-divider mt-6"></div>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="section-subheading">Partner Uploads</h3>
+                  <h3 className="section-subheading">
+                    {formData.entityType === 'Private/Public Ltd Company' ? 'Director Document Uploads' : 'Partner Document Uploads'}
+                  </h3>
                 </div>
 
                 {formData.partnerUploads.map((partner, index) => (
                   <div className="partner-card glass-panel mt-4" key={index}>
                     <div className="flex justify-between items-center mb-3">
-                      <h4>Partner {index + 1}</h4>
-                      <span className="badge badge-secondary">Partner Documents</span>
+                      <h4>{formData.entityType === 'Private/Public Ltd Company' ? `Director ${index + 1}` : `Partner ${index + 1}`}</h4>
+                      <span className="badge badge-secondary">{formData.entityType === 'Private/Public Ltd Company' ? 'Director Documents' : 'Partner Documents'}</span>
                     </div>
                     <div className="form-grid">
                       <div className="input-group full-width">
@@ -1236,34 +1508,10 @@ const Onboarding = () => {
 
                 <div className="flex justify-end mt-5">
                   <button type="button" className="btn btn-secondary" onClick={addPartner}>
-                    Add Partner
+                    {formData.entityType === 'Private/Public Ltd Company' ? 'Add Director' : 'Add Partner'}
                   </button>
                 </div>
               </>
-            )}
-
-            <div className="section-divider mt-6"></div>
-            <h3 className="section-subheading mt-6">OCR Extraction Status</h3>
-            <p className="text-sm text-muted mb-4">The system will automatically extract data from your uploaded documents for faster processing.</p>
-            
-            <div className="banking-options">
-              <div className="banking-card glass-panel">
-                <h3>Run OCR Extraction</h3>
-                <p>Extract and auto-fill information from the uploaded documents using OCR technology.</p>
-                <button className="btn btn-primary mt-4" onClick={simulateCompanyOCRExtraction} disabled={activeExtraction !== null}>
-                  {isExtracting('companyOcr') ? <><Loader2 className="spin" size={16}/> Processing...</> : 'Run OCR Extraction'}
-                </button>
-              </div>
-            </div>
-
-            {extractionStatus.companyOcr && (
-              <div className="success-banner animate-fade-in mt-6">
-                <CheckCircle className="text-success" size={24} />
-                <div>
-                  <strong>Document Processing Successful!</strong>
-                  <p>All documents have been processed and data has been extracted for the next steps.</p>
-                </div>
-              </div>
             )}
           </div>
         )}
@@ -1736,6 +1984,12 @@ const Onboarding = () => {
                   <option>Yes</option><option>No</option>
                 </select>
               </div>
+              {formData.msmeRegistered === 'Yes' && (
+                <div className="input-group">
+                  <label>MSME / Udyam Number</label>
+                  <input type="text" name="msmeNumber" value={formData.msmeNumber} onChange={handleInputChange} />
+                </div>
+              )}
             </div>
 
             <h3 className="section-subheading mt-6">RCU Business References (Manual Entry)</h3>
@@ -1990,6 +2244,50 @@ const Onboarding = () => {
           </button>
         </div>
       </div>
+
+      {/* Manual OCR Verification Modal */}
+      {verificationModalData && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-content glass-panel" style={{ width: '500px', maxHeight: '80vh', overflowY: 'auto', backgroundColor: '#fff', padding: '2rem', borderRadius: '8px' }}>
+            <div className="flex justify-between items-center mb-4 border-bottom pb-2">
+              <h3>Verify Extracted Data</h3>
+              <span className="badge badge-primary">{verificationModalData.docType}</span>
+            </div>
+            <p className="text-sm text-muted mb-4">Please verify and edit the extracted fields before mapping them to the form.</p>
+            
+            {Object.keys(verificationModalData.editedData).length === 0 ? (
+              <p className="text-sm text-muted">No specific data fields were extracted from this document.</p>
+            ) : (
+              <div className="form-grid">
+                {Object.keys(verificationModalData.editedData).map(key => (
+                  <div className="input-group full-width" key={key}>
+                    <label>{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</label>
+                    <input 
+                      type="text" 
+                      value={verificationModalData.editedData[key] || ''}
+                      onChange={(e) => {
+                        setVerificationModalData(prev => ({
+                          ...prev,
+                          editedData: {
+                            ...prev.editedData,
+                            [key]: e.target.value
+                          }
+                        }));
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="flex justify-end gap-3 mt-5">
+              <button className="btn btn-secondary" onClick={() => setVerificationModalData(null)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleApproveAndMap}>Approve & Map</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

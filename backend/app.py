@@ -1,6 +1,5 @@
 
 import os
-import json
 import time
 import logging
 import traceback
@@ -8,27 +7,53 @@ from pathlib import Path
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from dotenv import load_dotenv
 
-from classifier import identify_document
-from extractor import extract_fields
-from text_extractor import extract_text_only
+load_dotenv()
+
+from db import init_db, db
+from models import Submission, ParsedDocument, User
+from parsers import get_parser, classify_document
+from auth import auth_bp, token_required
+
+# ─── Application Factory ─────────────────────────────────────────────────────
 
 app = Flask(__name__, static_folder="static")
-CORS(app)
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Production CORS: restrict to known origins
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5000").split(",")
+CORS(app, origins=ALLOWED_ORIGINS, supports_credentials=True)
+
+# ─── Database & Auth ──────────────────────────────────────────────────────────
+
+# Database & Auth
+init_db(app)
+app.register_blueprint(auth_bp)
+
+# ─── Logging ──────────────────────────────────────────────────────────────────
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger("dsa-portal")
+
+# ─── File Upload Config ──────────────────────────────────────────────────────
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-# Allowed extensions
+MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25 MB
+app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
+
 ALLOWED_EXTENSIONS = {
     ".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm",
     ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".md", ".txt"
 }
 
-# Lazy-initialized converter (heavy model downloads happen on first use)
+# ─── Docling Converter (Lazy Init) ───────────────────────────────────────────
+
 _converter = None
 
 
@@ -38,22 +63,15 @@ def get_converter():
     if _converter is not None:
         return _converter
 
-    logger.info("Initializing Docling document converter (first-time setup, may download models)...")
+    logger.info("Initializing Docling document converter (first-time setup)...")
 
     from docling.document_converter import DocumentConverter, PdfFormatOption
     from docling.datamodel.base_models import InputFormat
     from docling.datamodel.pipeline_options import PdfPipelineOptions, TesseractCliOcrOptions
     from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 
-    # Configure PDF pipeline:
-    # - OCR disabled (avoids RapidOCR/torch PP-OCRv6 incompatibility crash)
-    # - TesseractCliOcrOptions used as a lightweight fallback that won't
-    #   trigger the broken RapidOCR torch model initialization
-    # - Table structure detection disabled to skip heavy model downloads
     pdf_pipeline_options = PdfPipelineOptions()
-    pdf_pipeline_options.do_ocr = False
-    pdf_pipeline_options.ocr_options = TesseractCliOcrOptions()
-    pdf_pipeline_options.do_table_structure = False
+    pdf_pipeline_options.do_ocr = True
 
     _converter = DocumentConverter(
         format_options={
@@ -69,9 +87,44 @@ def get_converter():
 
 
 def allowed_file(filename: str) -> bool:
-    """Check if the file extension is supported by Docling."""
+    """Check if the file extension is supported."""
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
 
+
+# ─── Global Error Handlers ───────────────────────────────────────────────────
+
+@app.errorhandler(400)
+def bad_request(e):
+    return jsonify({"error": "Bad request."}), 400
+
+
+@app.errorhandler(401)
+def unauthorized(e):
+    return jsonify({"error": "Authentication required."}), 401
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    return jsonify({"error": "Access denied."}), 403
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Resource not found."}), 404
+
+
+@app.errorhandler(413)
+def payload_too_large(e):
+    return jsonify({"error": f"File too large. Maximum size is {MAX_CONTENT_LENGTH // (1024*1024)} MB."}), 413
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    logger.error(f"Internal server error: {e}")
+    return jsonify({"error": "An internal server error occurred."}), 500
+
+
+# ─── Static File Routes ──────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
@@ -85,26 +138,25 @@ def static_files(path):
     return send_from_directory("static", path)
 
 
+# ─── Document Parsing (Protected) ────────────────────────────────────────────
+
 @app.route("/api/parse", methods=["POST"])
-def parse_document():
+@token_required
+def parse_document(current_user):
     """
     Parse an uploaded document using Docling.
-    Returns raw parsed data in multiple formats: dict, markdown, and document text.
+    Requires valid JWT token.
     """
     if "file" not in request.files:
-        return jsonify({"error": "No file uploaded. Please select a document."}), 400
+        return jsonify({"error": "No file uploaded."}), 400
 
     file = request.files["file"]
     if file.filename == "":
         return jsonify({"error": "No file selected."}), 400
 
     if not allowed_file(file.filename):
-        return jsonify({
-            "error": f"Unsupported file type: '{Path(file.filename).suffix}'. "
-                     f"Supported formats: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
-        }), 400
+        return jsonify({"error": "Unsupported file type."}), 400
 
-    # Save the uploaded file
     safe_filename = f"{int(time.time())}_{file.filename}"
     filepath = UPLOAD_DIR / safe_filename
     file.save(str(filepath))
@@ -112,119 +164,179 @@ def parse_document():
     try:
         start_time = time.time()
 
-        # ── STEP 1: Upload received ───────────────────────────────────────────
         file_size_bytes = os.path.getsize(str(filepath))
-        sep = "=" * 60
-        print(f"\n{sep}")
-        print(f"  PIPELINE START — {file.filename}")
-        print(sep)
-        print(f"  [1/5] File received")
-        print(f"        Name : {file.filename}")
-        print(f"        Size : {file_size_bytes:,} bytes ({file_size_bytes / 1024:.1f} KB)")
-        print(f"        Path : {filepath}")
+        logger.info(f"[PARSE] User={current_user.username} File={file.filename} Size={file_size_bytes}B")
+        logger.info(f"[PARSE] === STARTED PARSING {file.filename} ===")
 
-        # ── STEP 2: Docling conversion ────────────────────────────────────────
-        print(f"\n  [2/5] Converting document with Docling...")
+        # Step 1: Docling conversion
+        logger.info("[PARSE] Step 1/4: Running Docling OCR conversion... (This may take a moment)")
         conv = get_converter()
         result = conv.convert(str(filepath))
         document = result.document
         elapsed = round(time.time() - start_time, 2)
-        print(f"        Done in {elapsed}s")
+        logger.info(f"[PARSE] Docling conversion finished in {elapsed}s.")
 
-        # Export to different formats
         raw_dict = document.export_to_dict()
         markdown_text = document.export_to_markdown()
 
-        # ── STEP 3: Element extraction ────────────────────────────────────────
-        texts   = raw_dict.get("texts", [])
-        tables  = raw_dict.get("tables", [])
+        # Step 2: Text extraction
+        logger.info("[PARSE] Step 2/4: Extracting and combining raw text...")
+        texts = raw_dict.get("texts", [])
+        tables = raw_dict.get("tables", [])
         pictures = raw_dict.get("pictures", [])
-        pages   = raw_dict.get("pages", {})
+        pages = raw_dict.get("pages", {})
 
-        print(f"\n  [3/5] Elements extracted")
-        print(f"        Pages    : {len(pages)}")
-        print(f"        Texts    : {len(texts) if isinstance(texts, list) else 0}")
-        print(f"        Tables   : {len(tables) if isinstance(tables, list) else 0}")
-        print(f"        Pictures : {len(pictures) if isinstance(pictures, list) else 0}")
-
-        # Build combined text
         all_texts = []
         for txt in texts:
             if isinstance(txt, dict) and "text" in txt:
                 all_texts.append(txt["text"])
         combined_text = "\n".join(all_texts)
+        logger.info(f"[PARSE] Extracted {len(all_texts)} text blocks across {len(pages)} pages.")
+        logger.info(f"[PARSE] --- RAW TEXT PREVIEW (First 500 chars) ---")
+        logger.info(f"\n{combined_text[:500]}...\n")
 
-        preview = combined_text[:300].replace("\n", " ").strip()
-        print(f"\n        Raw text preview ({len(combined_text)} chars):")
-        print(f"        \"{preview}{'…' if len(combined_text) > 300 else ''}\"")
-
-        # ── STEP 4: Document classification ──────────────────────────────────
-        print(f"\n  [4/5] Classifying document...")
-        doc_type = identify_document(combined_text)
-        print(f"        Detected type : {doc_type}")
-
-        # ── STEP 5: Field extraction ──────────────────────────────────────────
-        print(f"\n  [5/5] Extracting fields for type '{doc_type}'...")
-        extracted_data = extract_fields(doc_type, raw_dict)
-        text_only_data = extract_text_only(raw_dict)
-
-        if extracted_data:
-            for key, val in extracted_data.items():
-                print(f"        {key:<30} : {val}")
+        # Step 3: Classification
+        logger.info("[PARSE] Step 3/4: Classifying document type...")
+        frontend_doc_type = request.form.get("documentType")
+        if frontend_doc_type:
+            doc_type = frontend_doc_type.upper()
+            logger.info(f"[PARSE] Received explicit document type from frontend: {doc_type}")
         else:
-            print(f"        (no structured fields extracted)")
+            doc_type = classify_document(combined_text)
+            logger.info(f"[PARSE] Auto-classified document type: {doc_type}")
 
-        print(f"\n{sep}")
-        print(f"  PIPELINE COMPLETE — {elapsed}s total")
-        print(f"{sep}\n")
+        # Step 4: Field extraction
+        logger.info(f"[PARSE] Step 4/4: Running Regex field extractors for {doc_type}...")
+        parser = get_parser(doc_type)
+        extracted_data = {}
+        if parser:
+            extracted_data = parser.extract_fields(combined_text, combined_text.lower(), raw_dict)
+            logger.info(f"[PARSE] Extraction successful. Found {len(extracted_data)} specific fields.")
+            import json
+            logger.info(f"[PARSE] Extracted Data (DEBUG):\n{json.dumps(extracted_data, indent=2)}")
+        else:
+            logger.warning(f"[PARSE] No specific parser found for {doc_type}. Passing raw text only.")
 
-        # Build response metadata
-        metadata = {
-            "filename": file.filename,
-            "file_size_bytes": file_size_bytes,
-            "parse_time_seconds": elapsed,
-            "num_pages": pages,
-            "document_type": doc_type,
-        }
+        # Step 5: Persist to database
+        parsed_doc = ParsedDocument(
+            filename=file.filename,
+            file_size_bytes=file_size_bytes,
+            document_type=doc_type,
+            parse_time_seconds=elapsed,
+            extracted_data=extracted_data if extracted_data else {},
+            raw_text=combined_text,
+            markdown_text=markdown_text
+        )
+        db.session.add(parsed_doc)
+        db.session.commit()
 
-        element_counts = {
-            "text_elements": len(texts) if isinstance(texts, list) else 0,
-            "tables": len(tables) if isinstance(tables, list) else 0,
-            "pictures": len(pictures) if isinstance(pictures, list) else 0,
-        }
+        logger.info(f"[PARSE] Saved document_id={parsed_doc.id}")
 
         return jsonify({
             "success": True,
-            "metadata": metadata,
-            "element_counts": element_counts,
+            "document_id": parsed_doc.id,
+            "metadata": {
+                "filename": file.filename,
+                "file_size_bytes": file_size_bytes,
+                "parse_time_seconds": elapsed,
+                "num_pages": len(pages),
+                "document_type": doc_type,
+            },
+            "element_counts": {
+                "text_elements": len(texts) if isinstance(texts, list) else 0,
+                "tables": len(tables) if isinstance(tables, list) else 0,
+                "pictures": len(pictures) if isinstance(pictures, list) else 0,
+            },
             "extracted_data": extracted_data,
-            "raw_text": text_only_data["text"],
+            "raw_text": combined_text,
             "markdown": markdown_text,
-            "raw_data": raw_dict,
         })
 
     except Exception as e:
-        traceback.print_exc()
-        return jsonify({
-            "error": f"Failed to parse document: {str(e)}",
-            "traceback": traceback.format_exc()
-        }), 500
+        logger.error(f"[PARSE] Failed for {file.filename}: {e}")
+        logger.debug(traceback.format_exc())
+        return jsonify({"error": "Document parsing failed. Please try again."}), 500
 
     finally:
-        # Clean up uploaded file
         if filepath.exists():
             filepath.unlink()
 
 
-@app.route("/api/supported-formats", methods=["GET"])
-def supported_formats():
-    """Return list of supported file formats."""
-    return jsonify({
-        "formats": sorted(list(ALLOWED_EXTENSIONS)),
-        "description": "Docling supports PDF, DOCX, PPTX, XLSX, HTML, images, and more."
-    })
+# ─── Submissions (Protected) ─────────────────────────────────────────────────
 
+@app.route("/api/submissions", methods=["GET"])
+@token_required
+def get_submissions(current_user):
+    """Fetch all submissions. Requires valid JWT token."""
+    submissions = Submission.query.order_by(Submission.created_at.desc()).all()
+    return jsonify([sub.to_dict() for sub in submissions])
+
+
+@app.route("/api/submissions", methods=["POST"])
+@token_required
+def create_submission(current_user):
+    """Create a new submission. Requires valid JWT token."""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "Request body is required."}), 400
+
+        new_sub = Submission(
+            id=data.get('id'),
+            name=data.get('name'),
+            dsaCode=data.get('dsaCode'),
+            date=data.get('date'),
+            status=data.get('status', 'Pending'),
+            step=data.get('step'),
+            data=data.get('data', {}),
+            verificationStatus=data.get('verificationStatus', {}),
+            remarksHistory=data.get('remarksHistory', [])
+        )
+        db.session.add(new_sub)
+        db.session.commit()
+
+        logger.info(f"[SUBMISSION] Created id={new_sub.id} by user={current_user.username}")
+        return jsonify(new_sub.to_dict()), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"[SUBMISSION] Create failed: {e}")
+        return jsonify({"error": "Failed to create submission."}), 500
+
+
+@app.route("/api/submissions/<sub_id>", methods=["PUT"])
+@token_required
+def update_submission(current_user, sub_id):
+    """Update a submission. Requires valid JWT token."""
+    try:
+        sub = Submission.query.get(sub_id)
+        if not sub:
+            return jsonify({"error": "Submission not found."}), 404
+
+        data = request.json
+        if not data:
+            return jsonify({"error": "Request body is required."}), 400
+
+        if 'status' in data:
+            sub.status = data['status']
+        if 'remarksHistory' in data:
+            sub.remarksHistory = data['remarksHistory']
+
+        db.session.commit()
+
+        logger.info(f"[SUBMISSION] Updated id={sub_id} by user={current_user.username}")
+        return jsonify(sub.to_dict())
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"[SUBMISSION] Update failed for {sub_id}: {e}")
+        return jsonify({"error": "Failed to update submission."}), 500
+
+
+# ─── Entry Point ─────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("\n>>> Intelligent Document Parser running at http://localhost:5000\n")
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    is_debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    port = int(os.getenv("PORT", 5000))
+    logger.info(f"DSA Portal starting on http://localhost:{port} (debug={is_debug})")
+    app.run(debug=is_debug, host="0.0.0.0", port=port)

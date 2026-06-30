@@ -22,17 +22,29 @@ const ReviewQueue = () => {
   const applicantInputRef = useRef(null);
   const productInputRef = useRef(null);
   const disputeInputRef = useRef(null);
-  const [applications, setApplications] = useState(() => {
-    try {
-      const subs = JSON.parse(localStorage.getItem('submissions') || 'null');
-      if (Array.isArray(subs)) {
-        return subs;
+  const [applications, setApplications] = useState(MOCK_APPLICATIONS);
+
+  useEffect(() => {
+    const fetchSubmissions = async () => {
+      try {
+        const token = sessionStorage.getItem('token');
+        const response = await fetch('http://localhost:5000/api/submissions', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            setApplications(data);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch submissions:', error);
       }
-      return MOCK_APPLICATIONS;
-    } catch {
-      return MOCK_APPLICATIONS;
-    }
-  });
+    };
+    fetchSubmissions();
+  }, []);
 
   const reviewData = selectedApp?.data ?? {};
   const documentUploads = reviewData.documentUploads || reviewData;
@@ -50,9 +62,7 @@ const ReviewQueue = () => {
       ? reviewData.partnerUploads
       : [];
 
-  useEffect(() => {
-    localStorage.setItem('submissions', JSON.stringify(applications));
-  }, [applications]);
+  // Local storage logic removed. Data is fetched from the backend.
 
   const selectedAppRemarksHistory = selectedApp?.remarksHistory || [];
   const showRemarksHistoryButton = selectedApp && (
@@ -60,7 +70,7 @@ const ReviewQueue = () => {
     || ['Query Raised', 'Dispute Raised', 'Send to Product'].includes(selectedApp.status)
   );
 
-  const handleActionSubmit = () => {
+  const handleActionSubmit = async () => {
     if (!selectedApp) return;
 
     const now = new Date().toLocaleString();
@@ -93,16 +103,38 @@ const ReviewQueue = () => {
       updatedApp = { ...updatedApp, remarksHistory: history };
     }
 
-    const updatedApplications = applications.map((app) => (app.id === updatedApp.id ? updatedApp : app));
-    setApplications(updatedApplications);
-    setSelectedApp(updatedApp);
-    setActivePopup(null);
-    setApplicantRemarks('');
-    setReviewerRemarks('');
-    setDisputeRemarks('');
-    setApplicantAttachments([]);
-    setProductAttachments([]);
-    setDisputeAttachments([]);
+    try {
+      const response = await fetch(`http://localhost:5000/api/submissions/${updatedApp.id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          status: updatedApp.status,
+          remarksHistory: updatedApp.remarksHistory
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const updatedApplications = applications.map((app) => (app.id === result.id ? result : app));
+        setApplications(updatedApplications);
+        setSelectedApp(result);
+        setActivePopup(null);
+        setApplicantRemarks('');
+        setReviewerRemarks('');
+        setDisputeRemarks('');
+        setApplicantAttachments([]);
+        setProductAttachments([]);
+        setDisputeAttachments([]);
+      } else {
+        throw new Error('Update failed');
+      }
+    } catch (error) {
+      console.error('Failed to update submission:', error);
+      alert('Failed to update the database.');
+    }
   };
 
   return (
