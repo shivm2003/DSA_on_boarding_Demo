@@ -13,8 +13,8 @@ class BankStatementParser(BaseParser):
 
         # Account Holder Name
         holder_patterns = [
-            r'(?:account\s*holder|customer\s*name|name)\s*[:\-=]?\s*([A-Z][a-zA-Z\s.]{2,50})',
-            r'(?:mr\.|mrs\.|ms\.)\s*([A-Z][a-zA-Z\s.]{2,50})',
+            r'(?:welcome|account\s*holder|customer\s*name|name)\s*[:\-=]?\s*(?:mr\.|mrs\.|ms\.)?\s*([A-Z][a-zA-Z \t.]{2,50})',
+            r'(?:mr\.|mrs\.|ms\.)[ \t]*([A-Z][a-zA-Z \t.]{2,50})',
         ]
         for pat in holder_patterns:
             m = re.search(pat, text, re.IGNORECASE)
@@ -40,11 +40,18 @@ class BankStatementParser(BaseParser):
 
         # Bank Name
         bank_m = re.search(
-            r'([A-Z][a-zA-Z\s]{2,30}(?:Bank|Bancorp|Financial|Co-operative))',
-            text, re.IGNORECASE
+            r'\b([A-Z][a-zA-Z]+(?:[ \t]+[A-Z][a-zA-Z]+)*[ \t]+(?:Bank|Bancorp|Financial|Co-operative))\b',
+            text
         )
         if bank_m:
             data['bank_name'] = bank_m.group(1).strip()
+        elif 'ifsc_code' in data:
+            if data['ifsc_code'].startswith('SBIN'):
+                data['bank_name'] = 'State Bank of India'
+            elif data['ifsc_code'].startswith('HDFC'):
+                data['bank_name'] = 'HDFC Bank'
+            elif data['ifsc_code'].startswith('ICIC'):
+                data['bank_name'] = 'ICICI Bank'
 
         # Statement Period
         period_m = re.search(
@@ -73,8 +80,10 @@ class BankStatementParser(BaseParser):
             data['closing_balance'] = cb_m.group(1).replace(',', '')
 
         # Branch
-        branch_m = re.search(r'(?:branch)\s*[:\-=]?\s*([A-Z][a-zA-Z\s,\-]{3,60})', text, re.IGNORECASE)
+        branch_m = re.search(r'(?:branch|branch\s+name)[ \t]*[:\-=]?[ \t]*([A-Z][a-zA-Z0-9 \t,\-\(\)]{3,60})', text, re.IGNORECASE)
         if branch_m:
-            data['branch'] = branch_m.group(1).strip()
+            val = branch_m.group(1).strip()
+            if val.lower() not in ['code', 'address', 'information', 'details']:
+                data['branch'] = val
 
         return data

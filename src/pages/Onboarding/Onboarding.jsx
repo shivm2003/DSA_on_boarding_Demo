@@ -6,9 +6,7 @@ import './Onboarding.css';
 const STEPS = [
   'Upload Document',
   'Entity Details',
-  'Banking Verification',
-  'Additional Documents',
-  'Verification',
+  'Banking',
   'Payout Selection',
   'E-Signing'
 ];
@@ -31,22 +29,13 @@ const DOCUMENT_MATRIX = {
 // Data-driven document list per Entity Type based on requirement matrix image
 // Each entry: { key, label, desc, hasOcr, mandatory }
 const BASE_DOCS = [
-  { key: 'dsaApplicationUpload',      label: 'DSA Application, Agreement & Code of Conduct', desc: 'Upload signed DSA Agreement',                         hasOcr: false, mandatory: true  },
-  { key: 'stampPaperUpload',          label: 'Stamp Paper',                                   desc: 'Value should be as per Respective State',              hasOcr: false, mandatory: true  },
-  { key: 'employeeDeclarationUpload', label: 'Declaration from Employee on Relationship',      desc: 'Upload Employee Declaration document',                 hasOcr: false, mandatory: true  },
-  { key: 'cibilFormatUpload',         label: 'CIBIL Format',                                   desc: 'Upload CIBIL Format document',                          hasOcr: false, mandatory: true  },
-  { key: 'rcuFormatUpload',           label: 'RCU Format',                                     desc: 'Upload RCU Format document',                            hasOcr: false, mandatory: true  },
   { key: 'photoUpload',               label: 'Photo (2 Recent)',                                desc: 'Hard copy also to be sent',                             hasOcr: false, mandatory: true  },
   { key: 'panUpload',                 label: 'PAN',                                             desc: 'Upload PAN document',                                   hasOcr: true,  mandatory: true  },
   { key: 'addressProofUpload',        label: 'KYC Document (Address Proof)',                   desc: 'Upload Address Proof (Aadhar / Voter ID / Passport)',   hasOcr: true,  mandatory: true  },
-  { key: 'bankStatementUpload',       label: 'Bank Statement (Last 6 Months)',                 desc: 'Upload Last 6 Months Bank Statement',                   hasOcr: false, mandatory: true  },
   { key: 'dsaTrainingPhotoUpload',    label: 'DSA Training Photo',                             desc: '2 Photos with DSA team and training',                   hasOcr: false, mandatory: true  },
-  { key: 'cancelledChequeUpload',     label: 'Cancelled Cheque',                               desc: 'Upload Cancelled Cheque',                               hasOcr: false, mandatory: false },
   { key: 'gstCertificateUpload',      label: 'GST Registration Certificate',                   desc: 'Upload GST Registration Certificate',                    hasOcr: true,  mandatory: false },
   { key: 'msmeCertificateUpload',     label: 'MSME Udhyam Registration Certificate',           desc: 'Upload MSME Udhyam Certificate',                        hasOcr: true,  mandatory: false },
-  { key: 'vendorIncomeUpload',        label: 'Vendor Income (Balance Sheet / ITR / Income Proof)', desc: 'Upload Income Proof',                              hasOcr: false, mandatory: false },
   { key: 'enrollmentLetterUpload',    label: 'Enrollment Letter',                               desc: 'Upload Enrollment Letter from other FI',                hasOcr: false, mandatory: false },
-  { key: 'profileCvUpload',           label: 'Profile (CV)',                                    desc: 'Upload your Profile or CV',                             hasOcr: false, mandatory: false },
 ];
 
 const ENTITY_ADDITIONAL_DOCS = {
@@ -109,6 +98,12 @@ const QRCodeDisplay = ({ email }) => {
 const Onboarding = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [activeExtraction, setActiveExtraction] = useState(null);
+  const [bankingMode, setBankingMode] = useState(null); // 'aa' | 'manual' | null
+  const [aaPhone, setAaPhone] = useState('');
+  const [aaLinkSent, setAaLinkSent] = useState(false);
+  const [aaAccountNumber, setAaAccountNumber] = useState('');
+  const [pennyDropDone, setPennyDropDone] = useState(false);
+  const [manualBankParsing, setManualBankParsing] = useState(false);
   const [verificationRunning, setVerificationRunning] = useState(false);
   const [verificationCompleted, setVerificationCompleted] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState({
@@ -155,19 +150,12 @@ const Onboarding = () => {
     msmeCertificateUpload: null,
     udyamCertificateUpload: null,
     
-    // New Base Document Uploads
+    // Base Document Uploads
     bankStatementUpload: null,
     cancelledChequeUpload: null,
-    vendorIncomeUpload: null,
-    dsaApplicationUpload: null,
-    stampPaperUpload: null,
-    employeeDeclarationUpload: null,
-    cibilFormatUpload: null,
-    rcuFormatUpload: null,
     photoUpload: null,
     dsaTrainingPhotoUpload: null,
     enrollmentLetterUpload: null,
-    profileCvUpload: null,
 
     // New Conditional Document Uploads
     firmRegistrationUpload: null,
@@ -249,10 +237,10 @@ const Onboarding = () => {
     refRelationship: '',
     refEmail: '',
     
-    assessedByName: '',
-    assessedByDepartment: '',
-    assessedByDesignation: '',
-    meetingDate: '',
+    assessedByName: 'Shivam Mishra',
+    assessedByDepartment: 'BSG',
+    assessedByDesignation: 'Manager',
+    meetingDate: new Date().toISOString().split('T')[0],
     
     spocName: '',
     spocDesignation: '',
@@ -380,16 +368,9 @@ const Onboarding = () => {
     udyamCertificateUpload:       'UDYAM',
     cancelledChequeUpload:        'CHEQUE',
     bankStatementUpload:          'BANK_STATEMENT',
-    vendorIncomeUpload:           'VENDOR_INCOME',
-    dsaApplicationUpload:         'DSA_APPLICATION',
-    stampPaperUpload:             'STAMP_PAPER',
-    employeeDeclarationUpload:    'EMPLOYEE_DECLARATION',
-    cibilFormatUpload:            'CIBIL',
-    rcuFormatUpload:              'RCU',
     photoUpload:                  'ANY',
     dsaTrainingPhotoUpload:       'ANY',
     enrollmentLetterUpload:       'ENROLLMENT_LETTER',
-    profileCvUpload:              'PROFILE_CV',
     firmRegistrationUpload:       'FIRM_REGISTRATION',
     shopEstablishmentUpload:      'SHOP_ESTABLISHMENT',
     officeAddressProofUpload:     'AADHAAR',
@@ -557,7 +538,8 @@ const Onboarding = () => {
         fieldName,
         docType: detectedType,
         extractedData: result.extracted_data || {},
-        editedData: result.extracted_data || {}
+        editedData: result.extracted_data || {},
+        rawText: result.raw_text || result.markdown || 'No raw text available'
       });
 
     } catch (err) {
@@ -1516,89 +1498,203 @@ const Onboarding = () => {
           </div>
         )}
 
-        {/* STEP 2: Banking Verification */}
+        {/* STEP 2: Banking */}
         {currentStep === 2 && (
-          <div className={`step-content animate-fade-in${isVerificationLocked ? ' locked-step' : ''}`} inert={isVerificationLocked}>
-            {isVerificationLocked && (
-              <div className="locked-overlay">Verification complete. Pages 1–4 are read-only after verification.</div>
-            )}
-            <h2>Banking Verification</h2>
-            <p className="mb-6 text-sm text-muted">We initiate banking verification for the company/firm and all partners listed.</p>
+          <div className="step-content animate-fade-in">
+            <h2>Bank Statement & Verification</h2>
+            <p className="mb-6 text-sm text-muted">Choose how to provide your banking details. Select Account Aggregator for seamless verification or Manual Banking to upload your statement.</p>
+
             <div className="banking-options">
-              <div className="banking-card glass-panel">
-                <h3>Company / Firm Bank</h3>
-                <p>Verify company bank details and auto-fill from the selected account.</p>
-                <button className="btn btn-primary mt-4" onClick={simulateCompanyBankingExtraction} disabled={activeExtraction !== null}>
-                  {isExtracting('companyBank') ? <><Loader2 className="spin" size={16}/> Connecting...</> : 'Verify Company Bank'}
-                </button>
+              {/* Account Aggregator Card */}
+              <div
+                className={`banking-card glass-panel ${bankingMode === 'aa' ? 'selected' : ''}`}
+                onClick={() => { setBankingMode('aa'); setManualBankParsing(false); }}
+                style={{ cursor: 'pointer', border: bankingMode === 'aa' ? '2px solid var(--primary)' : '2px solid transparent' }}
+              >
+                <h3>🔗 Account Aggregator</h3>
+                <p>Securely link your bank account via Account Aggregator for instant verification.</p>
+              </div>
+
+              {/* Manual Banking Card */}
+              <div
+                className={`banking-card glass-panel ${bankingMode === 'manual' ? 'selected' : ''}`}
+                onClick={() => { setBankingMode('manual'); setAaLinkSent(false); setAaPhone(''); }}
+                style={{ cursor: 'pointer', border: bankingMode === 'manual' ? '2px solid var(--primary)' : '2px solid transparent' }}
+              >
+                <h3>📄 Manual Banking</h3>
+                <p>Upload your bank statement PDF and we'll auto-extract your account details.</p>
               </div>
             </div>
 
-            <div className="section-divider"></div>
-            <h3 className="section-subheading mt-6">Company / Firm Bank Details</h3>
-            <div className="form-grid">
-              <div className="input-group">
-                <label>Bank Name</label>
-                <input type="text" name="bankName" value={formData.bankName} onChange={handleInputChange} disabled={verificationCompleted} />
-              </div>
-              <div className="input-group">
-                <label>Account Number</label>
-                <input type="text" name="accountNumber" value={formData.accountNumber} onChange={handleInputChange} disabled={verificationCompleted} />
-              </div>
-              <div className="input-group">
-                <label>IFSC Code</label>
-                <input type="text" name="ifscCode" value={formData.ifscCode} onChange={handleInputChange} disabled={verificationCompleted} />
-              </div>
-            </div>
-
-            {formData.entityType !== 'Individual' && formData.partnerBankDetails.length > 0 && (
-              <>
-                <div className="section-divider"></div>
-                <h3 className="section-subheading mt-6">Partner / Director Bank Details</h3>
-                {formData.partnerBankDetails.map((bank, idx) => (
-                  <div className="partner-card glass-panel mt-4" key={idx}>
-                    <div className="flex justify-between items-center mb-3">
-                      <h4>Partner {idx + 1} Bank</h4>
-                      <span className="badge badge-secondary">{formData.entityType}</span>
-                    </div>
-                    <button className="btn btn-outline mb-4" onClick={() => simulatePartnerBankingExtraction(idx)} disabled={activeExtraction !== null}>
-                      {isExtracting(`partnerBank-${idx}`) ? <><Loader2 className="spin" size={16}/> Verifying...</> : `Verify Partner ${idx + 1} Bank`}
-                    </button>
-                    <div className="form-grid">
-                      <div className="input-group">
-                        <label>Bank Name</label>
-                        <input type="text" value={bank.bankName} onChange={(e) => handlePartnerBankChange(idx, 'bankName', e.target.value)} />
-                      </div>
-                      <div className="input-group">
-                        <label>Account Number</label>
-                        <input type="text" value={bank.accountNumber} onChange={(e) => handlePartnerBankChange(idx, 'accountNumber', e.target.value)} />
-                      </div>
-                      <div className="input-group">
-                        <label>IFSC Code</label>
-                        <input type="text" value={bank.ifscCode} onChange={(e) => handlePartnerBankChange(idx, 'ifscCode', e.target.value)} />
-                      </div>
-                    </div>
+            {/* Account Aggregator Flow */}
+            {bankingMode === 'aa' && (
+              <div className="mt-6">
+                <div className="partner-card glass-panel">
+                  <h4 className="mb-4">Account Aggregator — Link Your Bank</h4>
+                  <div className="aa-iframe-container" style={{ border: '2px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-6)', background: 'var(--primary-gradient-subtle)' }}>
+                    {!aaLinkSent ? (
+                      <>
+                        <p className="text-sm text-muted mb-4">Enter your registered mobile number to receive the Account Aggregator consent link.</p>
+                        <div className="input-group">
+                          <label>Mobile Number</label>
+                          <input
+                            type="tel"
+                            placeholder="Enter 10-digit mobile number"
+                            value={aaPhone}
+                            onChange={(e) => setAaPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                            maxLength={10}
+                            inputMode="numeric"
+                          />
+                        </div>
+                        <button
+                          className="btn btn-primary mt-4"
+                          disabled={aaPhone.length !== 10}
+                          onClick={() => {
+                            setAaLinkSent(true);
+                            alert(`Consent link sent to ${aaPhone}`);
+                          }}
+                        >
+                          Send Link
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="success-banner animate-fade-in mb-4">
+                          <CheckCircle className="text-success" size={20} />
+                          <div>
+                            <strong>Consent link sent to {aaPhone}</strong>
+                            <p>Please approve the consent on your mobile device.</p>
+                          </div>
+                        </div>
+                        <div className="section-divider"></div>
+                        <h4 className="mb-3">Penny Drop Verification</h4>
+                        <p className="text-sm text-muted mb-4">Enter your account number for penny drop verification.</p>
+                        <div className="form-grid">
+                          <div className="input-group">
+                            <label>Account Number</label>
+                            <input
+                              type="text"
+                              placeholder="Enter account number"
+                              value={aaAccountNumber}
+                              onChange={(e) => setAaAccountNumber(e.target.value)}
+                            />
+                          </div>
+                          <div className="input-group">
+                            <label>IFSC Code</label>
+                            <input
+                              type="text"
+                              placeholder="Enter IFSC code"
+                              name="ifscCode"
+                              value={formData.ifscCode}
+                              onChange={handleInputChange}
+                            />
+                          </div>
+                        </div>
+                        <button
+                          className="btn btn-primary mt-4"
+                          disabled={!aaAccountNumber || pennyDropDone}
+                          onClick={() => {
+                            setPennyDropDone(true);
+                            setFormData(prev => ({
+                              ...prev,
+                              accountNumber: aaAccountNumber,
+                              bankName: 'Auto-Verified Bank'
+                            }));
+                          }}
+                        >
+                          {pennyDropDone ? '✓ Penny Drop Verified' : 'Verify via Penny Drop'}
+                        </button>
+                        {pennyDropDone && (
+                          <div className="success-banner animate-fade-in mt-4">
+                            <CheckCircle className="text-success" size={20} />
+                            <div>
+                              <strong>Penny Drop Successful!</strong>
+                              <p>Account {aaAccountNumber} has been verified.</p>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
-                ))}
-              </>
-            )}
-
-            {extractionStatus.companyBank && (
-              <div className="success-banner animate-fade-in mt-6">
-                <CheckCircle className="text-success" size={24} />
-                <div>
-                  <strong>Company Banking Details Verified!</strong>
-                  <p>Company Bank: {formData.bankName} | A/C: {formData.accountNumber}</p>
                 </div>
               </div>
             )}
 
-            {formData.entityType !== 'Individual' && verifiedPartnerBanks > 0 && (
-              <div className="success-banner animate-fade-in mt-4">
-                <CheckCircle className="text-success" size={24} />
-                <div>
-                  <strong>Partner Banking Details Verified!</strong>
-                  <p>{verifiedPartnerBanks} of {formData.partnerBankDetails.length} partner/director bank records have been verified.</p>
+            {/* Manual Banking Flow */}
+            {bankingMode === 'manual' && (
+              <div className="mt-6">
+                <div className="partner-card glass-panel">
+                  <h4 className="mb-4">Upload Bank Statement</h4>
+                  <p className="text-sm text-muted mb-4">Upload your bank statement PDF. We'll automatically extract Account Number and IFSC Code.</p>
+                  <div className={`file-upload-zone${formData.bankStatementUpload ? ' has-file' : ''}`}>
+                    {manualBankParsing ? (
+                      <div className="flex flex-col items-center justify-center text-muted" style={{ padding: '1rem' }}>
+                        <Loader2 size={32} className="spin mb-2" />
+                        <p>Parsing bank statement...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <FileText size={24} className="mb-2 text-muted" />
+                        <p>{formData.bankStatementUpload ? `✓ ${formData.bankStatementUpload.name}` : 'Click to upload bank statement (PDF)'}</p>
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            setFormData(prev => ({ ...prev, bankStatementUpload: file }));
+                            setManualBankParsing(true);
+                            try {
+                              const fd = new FormData();
+                              fd.append('file', file);
+                              fd.append('documentType', 'BANK_STATEMENT');
+                              const token = sessionStorage.getItem('token');
+                              const res = await fetch('http://localhost:5000/api/parse', {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${token}` },
+                                body: fd
+                              });
+                              const result = await res.json();
+                              if (result.success && result.extracted_data) {
+                                const ext = result.extracted_data;
+                                setFormData(prev => ({
+                                  ...prev,
+                                  accountNumber: ext.account_number || prev.accountNumber,
+                                  ifscCode: ext.ifsc_code || prev.ifscCode,
+                                  bankName: ext.bank_name || prev.bankName
+                                }));
+                              }
+                            } catch (err) {
+                              console.error('Bank statement parse error:', err);
+                            } finally {
+                              setManualBankParsing(false);
+                            }
+                          }}
+                        />
+                      </>
+                    )}
+                  </div>
+
+                  {(formData.accountNumber || formData.ifscCode) && bankingMode === 'manual' && (
+                    <>
+                      <div className="section-divider"></div>
+                      <h4 className="mb-3">Extracted Bank Details</h4>
+                      <div className="form-grid">
+                        <div className="input-group">
+                          <label>Bank Name</label>
+                          <input type="text" name="bankName" value={formData.bankName} onChange={handleInputChange} className={formData.bankName ? 'prefilled' : ''} />
+                        </div>
+                        <div className="input-group">
+                          <label>Account Number</label>
+                          <input type="text" name="accountNumber" value={formData.accountNumber} onChange={handleInputChange} className={formData.accountNumber ? 'prefilled' : ''} />
+                        </div>
+                        <div className="input-group">
+                          <label>IFSC Code</label>
+                          <input type="text" name="ifscCode" value={formData.ifscCode} onChange={handleInputChange} className={formData.ifscCode ? 'prefilled' : ''} />
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -1650,14 +1746,7 @@ const Onboarding = () => {
                 <label>Company / Vendor Name</label>
                 <input type="text" name="companyName" value={formData.companyName} onChange={handleInputChange} disabled={verificationCompleted} />
               </div>
-              <div className="input-group">
-                <label>Vendor Category</label>
-                <select name="vendorCategory" value={formData.vendorCategory} onChange={handleInputChange} disabled={verificationCompleted}>
-                  {VENDOR_CATEGORIES.map((category) => (
-                    <option key={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
+
               <div className="input-group">
                 <label>Date of Incorporation / DOB</label>
                 <input
@@ -1669,10 +1758,7 @@ const Onboarding = () => {
                   pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                 />
               </div>
-              <div className="input-group">
-                <label>Designation</label>
-                <input type="text" name="designation" value={formData.designation} onChange={handleInputChange} placeholder="e.g., Director" />
-              </div>
+
               <div className="input-group">
                 <label>Phone Number</label>
                 <div className="input-with-button">
@@ -1775,64 +1861,25 @@ const Onboarding = () => {
                 <label>Select Serving City</label>
                 <input type="text" name="serviceCity" value={formData.serviceCity} onChange={handleInputChange} disabled={verificationCompleted} />
               </div>
-              <div className="input-group">
-                <label>Select Serving Branch</label>
-                <input type="text" name="serviceBranch" value={formData.serviceBranch} onChange={handleInputChange} disabled={verificationCompleted} />
-              </div>
+
             </div>
 
-            <div className="section-divider"></div>
-            <h3 className="section-subheading">Business Details</h3>
-            <div className="form-grid">
-              <div className="input-group">
-                <label>Vendor Annual Turnover (INR)</label>
-                <input type="text" name="annualTurnover" value={formData.annualTurnover} onChange={handleInputChange} disabled={verificationCompleted} />
-              </div>
-              <div className="input-group">
-                <label>Years of Experience</label>
-                <input type="text" name="yearsOfExperience" value={formData.yearsOfExperience} onChange={handleInputChange} />
-              </div>
-              <div className="input-group full-width">
-                <label>Key Clients Worked With</label>
-                <input type="text" name="keyClients" value={formData.keyClients} onChange={handleInputChange} placeholder="Ex: HDFC, ICICI, etc." />
-              </div>
-            </div>
 
-            <div className="section-divider"></div>
-            <h3 className="section-subheading">Reference Details</h3>
-            <div className="form-grid">
-              <div className="input-group">
-                <label>Reference Name</label>
-                <input type="text" name="refName" value={formData.refName} onChange={handleInputChange} />
-              </div>
-              <div className="input-group">
-                <label>Contact Details</label>
-                <input type="text" name="refContact" value={formData.refContact} onChange={handleInputChange} />
-              </div>
-              <div className="input-group">
-                <label>Relationship with Vendor</label>
-                <input type="text" name="refRelationship" value={formData.refRelationship} onChange={handleInputChange} />
-              </div>
-              <div className="input-group">
-                <label>Email ID</label>
-                <input type="email" name="refEmail" value={formData.refEmail} onChange={handleInputChange} />
-              </div>
-            </div>
 
             <div className="section-divider"></div>
             <h3 className="section-subheading">Vendor Met & Assessed By</h3>
             <div className="form-grid">
               <div className="input-group">
                 <label>Employee Name</label>
-                <input type="text" name="assessedByName" value={formData.assessedByName} onChange={handleInputChange} />
+                <input type="text" name="assessedByName" value={formData.assessedByName} readOnly className="prefilled" />
               </div>
               <div className="input-group">
                 <label>Department</label>
-                <input type="text" name="assessedByDepartment" value={formData.assessedByDepartment} onChange={handleInputChange} />
+                <input type="text" name="assessedByDepartment" value={formData.assessedByDepartment} readOnly className="prefilled" />
               </div>
               <div className="input-group">
                 <label>Designation</label>
-                <input type="text" name="assessedByDesignation" value={formData.assessedByDesignation} onChange={handleInputChange} />
+                <input type="text" name="assessedByDesignation" value={formData.assessedByDesignation} readOnly className="prefilled" />
               </div>
               <div className="input-group">
                 <label>Date of Meeting</label>
@@ -1840,9 +1887,8 @@ const Onboarding = () => {
                   type="date"
                   name="meetingDate"
                   value={formData.meetingDate}
-                  onChange={handleInputChange}
-                  inputMode="numeric"
-                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                  readOnly
+                  className="prefilled"
                 />
               </div>
             </div>
@@ -2013,78 +2059,10 @@ const Onboarding = () => {
             </div>
           </div>
         )}
-        
-        {/* STEP 3: Document Collection */}
+
+
+        {/* STEP 3: Payout & Stamp Selection */}
         {currentStep === 3 && (
-          <div className={`step-content animate-fade-in${isVerificationLocked ? ' locked-step' : ''}`} inert={isVerificationLocked}>
-            {isVerificationLocked && (
-              <div className="locked-overlay">Verification complete. Pages 1–4 are read-only after verification.</div>
-            )}
-            <h2>Additional Document Collection</h2>
-            <p className="mb-4 text-sm text-muted">ID and Address proofs were already collected in Step 2. Showing remaining required documents for: <strong>{formData.vendorCategory}</strong></p>
-            
-            <div className="form-grid">
-              {requiredDocs.map((doc, idx) => (
-                <div className="input-group" key={idx}>
-                  <label>Upload {doc}</label>
-                  <div className="file-upload-zone">
-                    <p>Click to Upload</p>
-                    <input type="file" />
-                  </div>
-                
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {/* STEP 4: Verification */}
-        {currentStep === 4 && (
-          <div className={`step-content animate-fade-in${isVerificationLocked ? ' locked-step' : ''}`} inert={isVerificationLocked}>
-            {isVerificationLocked && (
-              <div className="locked-overlay">Verification complete. Pages 1–4 are read-only after verification.</div>
-            )}
-            <h2>Verification & BRE Checks</h2>
-            <p className="mb-4 text-sm text-muted">Run verification APIs and BRE for PAN, DL, Voter, Udyam and GST documents.</p>
-
-            <div className="payout-grid">
-              {['PAN', 'DL', 'Voter', 'Udyam', 'GST'].map((item) => (
-                <div className="payout-card glass-panel" key={item}>
-                  <h3>{item}</h3>
-                  <p className="text-sm">Verification API and BRE will be run for this document.</p>
-                  <div className="mt-4">
-                    <span className={`badge ${verificationStatus[item.toLowerCase()] ? 'badge-success' : 'badge-warning'}`}>
-                      {verificationStatus[item.toLowerCase()] ? 'Verified' : 'Pending'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="banking-options">
-              <div className="banking-card glass-panel">
-                <h3>Run Document Verification</h3>
-                <p>Trigger all verification APIs and business rules for the selected documents.</p>
-                <button className="btn btn-primary mt-4" onClick={simulateVerificationRun} disabled={verificationRunning || verificationCompleted}>
-                  {verificationRunning ? <><Loader2 className="spin" size={16}/> Running...</> : 'Run Verification'}
-                </button>
-              </div>
-            </div>
-
-            {Object.values(verificationStatus).every(Boolean) && !verificationRunning && (
-              <div className="success-banner animate-fade-in mt-6">
-                <CheckCircle className="text-success" size={24} />
-                <div>
-                  <strong>Verification Complete!</strong>
-                  <p>PAN, DL, Voter, Udyam and GST verification APIs and BRE checks have been completed successfully.</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* STEP 5: Payout & Stamp Selection */}
-        {currentStep === 5 && (
           <div className="step-content animate-fade-in">
             <h2>Payout & Stamp Selection</h2>
             <div className="payout-grid">
@@ -2210,8 +2188,8 @@ const Onboarding = () => {
           </div>
         )}
         
-        {/* STEP 6: E-Signing */}
-        {currentStep === 6 && (
+        {/* STEP 4: E-Signing */}
+        {currentStep === 4 && (
           <div className="step-content animate-fade-in">
             <h2>E-Signing & Submission</h2>
             <div className="esign-container glass-panel">
@@ -2280,6 +2258,17 @@ const Onboarding = () => {
               </div>
             )}
             
+            <div className="mt-4">
+              <h4 className="text-sm font-semibold mb-2 text-muted">Raw Data (For Verification)</h4>
+              <textarea 
+                className="form-control" 
+                style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', backgroundColor: '#f9f9f9', fontSize: '0.875rem' }}
+                rows="6" 
+                readOnly 
+                value={verificationModalData.rawText || 'No raw text available'}
+              />
+            </div>
+
             <div className="flex justify-end gap-3 mt-5">
               <button className="btn btn-secondary" onClick={() => setVerificationModalData(null)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleApproveAndMap}>Approve & Map</button>

@@ -4,6 +4,7 @@ import time
 import logging
 import traceback
 from pathlib import Path
+import fitz
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -168,30 +169,65 @@ def parse_document(current_user):
         logger.info(f"[PARSE] User={current_user.username} File={file.filename} Size={file_size_bytes}B")
         logger.info(f"[PARSE] === STARTED PARSING {file.filename} ===")
 
-        # Step 1: Docling conversion
-        logger.info("[PARSE] Step 1/4: Running Docling OCR conversion... (This may take a moment)")
-        conv = get_converter()
-        result = conv.convert(str(filepath))
-        document = result.document
-        elapsed = round(time.time() - start_time, 2)
-        logger.info(f"[PARSE] Docling conversion finished in {elapsed}s.")
+        # Step 1 & 2: Text Extraction (PyMuPDF or Docling)
+        is_pdf = file.filename.lower().endswith('.pdf')
+        combined_text = ""
+        markdown_text = ""
+        raw_dict = {}
+        pages = []
+        texts = []
+        tables = []
+        pictures = []
+        
+        is_searchable = False
+        
+        if is_pdf:
+            logger.info("[PARSE] Step 1/4: Checking if PDF is searchable with PyMuPDF...")
+            try:
+                doc = fitz.open(str(filepath))
+                pymupdf_text = ""
+                for page in doc:
+                    pymupdf_text += page.get_text() + "\n"
+                doc.close()
+                
+                # Simple heuristic: if we got significant text, it's searchable
+                if len(pymupdf_text.strip()) > 50:
+                    is_searchable = True
+                    combined_text = pymupdf_text
+                    markdown_text = pymupdf_text
+                    raw_dict = {"texts": [{"text": pymupdf_text}]}
+                    texts = [{"text": pymupdf_text}]
+                    elapsed = round(time.time() - start_time, 2)
+                    logger.info(f"[PARSE] PyMuPDF extraction finished in {elapsed}s. Extracted {len(combined_text)} chars.")
+                else:
+                    logger.info("[PARSE] PDF is not searchable or has too little text. Falling back to Docling OCR.")
+            except Exception as ex:
+                logger.warning(f"[PARSE] PyMuPDF check failed: {ex}. Falling back to Docling OCR.")
 
-        raw_dict = document.export_to_dict()
-        markdown_text = document.export_to_markdown()
+        if not is_searchable:
+            logger.info("[PARSE] Step 1/4: Running Docling OCR conversion... (This may take a moment)")
+            conv = get_converter()
+            result = conv.convert(str(filepath))
+            document = result.document
+            elapsed = round(time.time() - start_time, 2)
+            logger.info(f"[PARSE] Docling conversion finished in {elapsed}s.")
+    
+            raw_dict = document.export_to_dict()
+            markdown_text = document.export_to_markdown()
+    
+            logger.info("[PARSE] Step 2/4: Extracting and combining raw text...")
+            texts = raw_dict.get("texts", [])
+            tables = raw_dict.get("tables", [])
+            pictures = raw_dict.get("pictures", [])
+            pages = raw_dict.get("pages", {})
+    
+            all_texts = []
+            for txt in texts:
+                if isinstance(txt, dict) and "text" in txt:
+                    all_texts.append(txt["text"])
+            combined_text = "\n".join(all_texts)
+            logger.info(f"[PARSE] Extracted {len(all_texts)} text blocks across {len(pages)} pages.")
 
-        # Step 2: Text extraction
-        logger.info("[PARSE] Step 2/4: Extracting and combining raw text...")
-        texts = raw_dict.get("texts", [])
-        tables = raw_dict.get("tables", [])
-        pictures = raw_dict.get("pictures", [])
-        pages = raw_dict.get("pages", {})
-
-        all_texts = []
-        for txt in texts:
-            if isinstance(txt, dict) and "text" in txt:
-                all_texts.append(txt["text"])
-        combined_text = "\n".join(all_texts)
-        logger.info(f"[PARSE] Extracted {len(all_texts)} text blocks across {len(pages)} pages.")
         logger.info(f"[PARSE] --- RAW TEXT PREVIEW (First 500 chars) ---")
         logger.info(f"\n{combined_text[:500]}...\n")
 
