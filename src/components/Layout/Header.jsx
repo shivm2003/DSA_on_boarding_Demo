@@ -27,14 +27,14 @@ const Header = () => {
     : 'Staff';
 
   return (
-    <header className="header glass-panel">
+    <header className="header">
       <div className="header-search">
         <Search size={18} className="search-icon" />
-        <input type="text" placeholder="Search with Code, Name, Number..." />
+        <input type="text" placeholder="Search applications, vendors, or mobile..." />
       </div>
-      
+
       <div className="header-actions">
-        <button className="icon-btn">
+        <button className="icon-btn" aria-label="Notifications">
           <Bell size={20} />
           <span className="badge-dot"></span>
         </button>

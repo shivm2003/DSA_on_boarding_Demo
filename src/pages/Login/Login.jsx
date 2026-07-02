@@ -5,8 +5,8 @@ import './Login.css';
 const API_BASE = 'http://localhost:5000';
 
 const getCaptchaPair = () => {
-  const first = Math.floor(Math.random() * 99) + 1;
-  const second = Math.floor(Math.random() * 99) + 1;
+  const first = Math.floor(Math.random() * 10) + 1;
+  const second = Math.floor(Math.random() * 10) + 1;
   return { first, second };
 };
 

@@ -224,13 +224,21 @@ a:hover {
    ═══════════════════════════════════════════════════ */
 
 .glass-panel {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.05), inset 0 1px 0 rgba(255, 255, 255, 1);
   position: relative;
   transition: box-shadow var(--transition-base), transform var(--transition-base);
   min-width: 0;
+}
+
+.dark-theme .glass-panel {
+  background: rgba(17, 24, 39, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .glass-panel::before {
@@ -398,12 +406,12 @@ a:hover {
 .input-group input,
 .input-group select,
 .input-group textarea {
-  padding: 0.7rem 0.95rem;
+  padding: 0.75rem 1rem;
   border-radius: var(--radius-md);
-  border: 1.5px solid var(--border-default);
-  background-color: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-subtle);
   font-family: var(--font-family);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   color: var(--text-primary);
   transition:
     border-color var(--transition-fast),
@@ -411,6 +419,7 @@ a:hover {
     background-color var(--transition-fast);
   min-width: 0;
   outline: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .input-group input::placeholder,
@@ -421,14 +430,23 @@ a:hover {
 .dark-theme .input-group input,
 .dark-theme .input-group select,
 .dark-theme .input-group textarea {
-  background-color: var(--bg-subtle);
+  background-color: rgba(0,0,0,0.2);
+  border-color: rgba(255,255,255,0.1);
+}
+
+.input-group input:hover,
+.input-group select:hover,
+.input-group textarea:hover {
+  border-color: var(--primary-glow);
+  background-color: var(--bg-surface);
 }
 
 .input-group input:focus,
 .input-group select:focus,
 .input-group textarea:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-glow);
+  background-color: var(--bg-surface);
+  box-shadow: 0 0 0 4px var(--primary-glow), inset 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 /* ═══════════════════════════════════════════════════

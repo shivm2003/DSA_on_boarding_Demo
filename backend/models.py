@@ -15,6 +15,7 @@ class User(db.Model):
     dob = db.Column(db.String(20))
     mobile = db.Column(db.String(20))
     reset_otp = db.Column(db.String(10))
+    consent_otp = db.Column(db.String(10))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, password):

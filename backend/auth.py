@@ -180,7 +180,43 @@ def reset_password():
     })
 
 
+@auth_bp.route('/consent/generate-otp', methods=['POST'])
+@token_required
+def generate_consent_otp(current_user):
+    """Generate an OTP for consent signing and save to DB."""
+    otp = str(random.randint(100000, 999999))
+    current_user.consent_otp = otp
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': 'Consent OTP generated successfully.',
+        'otp': otp  # Sent back for demo purposes
+    })
 
 
+@auth_bp.route('/consent/verify-otp', methods=['POST'])
+@token_required
+def verify_consent_otp(current_user):
+    """Verify the consent OTP."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request body is required.'}), 400
+
+    otp_submitted = data.get('otp', '').strip()
+    if not otp_submitted:
+        return jsonify({'error': 'OTP is required.'}), 400
+
+    if not current_user.consent_otp or current_user.consent_otp != otp_submitted:
+        return jsonify({'error': 'Invalid or expired OTP.'}), 400
+
+    # Clear OTP on success
+    current_user.consent_otp = None
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': 'Consent verified successfully.'
+    })
 
 
