@@ -1,5 +1,6 @@
 
 import os
+import re
 import time
 import logging
 import traceback
@@ -248,6 +249,15 @@ def parse_document(current_user):
         if parser:
             extracted_data = parser.extract_fields(combined_text, combined_text.lower(), raw_dict)
             logger.info(f"[PARSE] Extraction successful. Found {len(extracted_data)} specific fields.")
+            # Normalize keys to camelCase expected by frontend/backoffice
+            def to_camel(s):
+                parts = s.split('_')
+                return parts[0] + ''.join(p.title() for p in parts[1:]) if len(parts) > 1 else s
+
+            mapped = {}
+            for k, v in (extracted_data or {}).items():
+                mapped[to_camel(k)] = v
+            extracted_data = mapped
             import json
             logger.info(f"[PARSE] Extracted Data (DEBUG):\n{json.dumps(extracted_data, indent=2)}")
         else:
@@ -300,6 +310,19 @@ def parse_document(current_user):
 
 # ─── Submissions (Protected) ─────────────────────────────────────────────────
 
+def generate_application_id():
+    """Generate the next application form number in DSA-0001 format."""
+    submissions = Submission.query.with_entities(Submission.id, Submission.dsaCode).all()
+    highest = 0
+
+    for submission_id, dsa_code in submissions:
+        for value in (submission_id, dsa_code):
+            match = re.fullmatch(r"DSA-(\d+)", str(value or ""))
+            if match:
+                highest = max(highest, int(match.group(1)))
+
+    return f"DSA-{highest + 1:04d}"
+
 @app.route("/api/submissions", methods=["GET"])
 @token_required
 def get_submissions(current_user):
@@ -317,10 +340,12 @@ def create_submission(current_user):
         if not data:
             return jsonify({"error": "Request body is required."}), 400
 
+        application_id = data.get('id') or generate_application_id()
+
         new_sub = Submission(
-            id=data.get('id'),
+            id=application_id,
             name=data.get('name'),
-            dsaCode=data.get('dsaCode'),
+            dsaCode=data.get('dsaCode') or application_id,
             date=data.get('date'),
             status=data.get('status', 'Pending'),
             step=data.get('step'),
@@ -340,6 +365,17 @@ def create_submission(current_user):
         return jsonify({"error": "Failed to create submission."}), 500
 
 
+@app.route("/api/submissions/<sub_id>", methods=["GET"])
+@token_required
+def get_submission(current_user, sub_id):
+    """Fetch one submission. Requires valid JWT token."""
+    sub = Submission.query.get(sub_id)
+    if not sub:
+        return jsonify({"error": "Submission not found."}), 404
+
+    return jsonify(sub.to_dict())
+
+
 @app.route("/api/submissions/<sub_id>", methods=["PUT"])
 @token_required
 def update_submission(current_user, sub_id):
@@ -355,6 +391,18 @@ def update_submission(current_user, sub_id):
 
         if 'status' in data:
             sub.status = data['status']
+        if 'name' in data:
+            sub.name = data['name']
+        if 'dsaCode' in data:
+            sub.dsaCode = data['dsaCode']
+        if 'date' in data:
+            sub.date = data['date']
+        if 'step' in data:
+            sub.step = data['step']
+        if 'data' in data:
+            sub.data = data['data']
+        if 'verificationStatus' in data:
+            sub.verificationStatus = data['verificationStatus']
         if 'remarksHistory' in data:
             sub.remarksHistory = data['remarksHistory']
 

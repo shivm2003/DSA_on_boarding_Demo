@@ -22,16 +22,26 @@ class BankStatementParser(BaseParser):
                 data['account_holder'] = m.group(1).strip()
                 break
 
-        # Account Number
+        # Account Number - support masked characters, spaces, dashes and asterisks
         acc_patterns = [
-            r'(?:account\s*(?:no|number|num))\s*[:\-=]?\s*(\d{9,18})',
-            r'(?:a/c\s*(?:no|number))\s*[:\-=]?\s*(\d{9,18})',
+            r'(?:account\s*(?:no|number|num|#))\s*[:\-:=]?\s*([\d\*Xx\s\-]{4,30})',
+            r'(?:a/c\s*(?:no|number))\s*[:\-:=]?\s*([\d\*Xx\s\-]{4,30})',
+            r'Account\s*Number\s*\n\s*([\d\*Xx\s\-]{4,30})'
         ]
         for pat in acc_patterns:
             m = re.search(pat, text, re.IGNORECASE)
             if m:
-                data['account_number'] = m.group(1)
+                acc_raw = m.group(1).strip()
+                # normalize: remove spaces and dashes but keep masking chars (*) and X
+                acc_norm = re.sub(r'[\s\-]', '', acc_raw)
+                data['account_number'] = acc_norm
                 break
+
+        # Fallback: find a standalone long numeric sequence (likely account number), avoid matching phone-like 10-digit numbers
+        if 'account_number' not in data:
+            seq_m = re.search(r'\b(\d{11,18})\b', text)
+            if seq_m:
+                data['account_number'] = seq_m.group(1)
 
         # IFSC Code
         ifsc_m = re.search(r'\b([A-Z]{4}0[A-Z0-9]{6})\b', text)

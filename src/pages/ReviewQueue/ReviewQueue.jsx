@@ -2,11 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Eye, FileText, Menu } from 'lucide-react';
 import './ReviewQueue.css';
 
-const MOCK_APPLICATIONS = [
-  { id: 'APP-001', name: 'Raman Associates', dsaCode: 'TEMP-ABCD1234', date: '14-04-2026', status: 'Pending', step: 'Review' },
-  { id: 'APP-002', name: 'Shivam Sharma', dsaCode: 'TEMP-XYZA5678', date: '15-04-2026', status: 'Query Raised', step: 'Compliance' },
-  { id: 'APP-003', name: 'Alok Traders', dsaCode: 'TEMP-LMNO9012', date: '16-04-2026', status: 'Approved', step: 'Completed' },
-];
+// Removed predefined/mock applications. Data will be fetched from backend API.
 
 const ReviewQueue = () => {
   const [selectedApp, setSelectedApp] = useState(null);
@@ -22,7 +18,7 @@ const ReviewQueue = () => {
   const applicantInputRef = useRef(null);
   const productInputRef = useRef(null);
   const disputeInputRef = useRef(null);
-  const [applications, setApplications] = useState(MOCK_APPLICATIONS);
+  const [applications, setApplications] = useState([]);
 
   useEffect(() => {
     const fetchSubmissions = async () => {
@@ -423,7 +419,7 @@ const ReviewQueue = () => {
                 <li><FileText size={16} /> ID Proof <span className="badge badge-secondary ml-auto">{documentUploads.idProofUpload || 'None'}</span></li>
                 <li><FileText size={16} /> Address Proof <span className="badge badge-secondary ml-auto">{documentUploads.addressProofUpload || 'None'}</span></li>
                 <li><FileText size={16} /> GST Certificate <span className="badge badge-secondary ml-auto">{documentUploads.gstCertificateUpload || 'None'}</span></li>
-                <li><FileText size={16} /> MSME Certificate <span className="badge badge-secondary ml-auto">{documentUploads.msmeCertificateUpload || 'None'}</span></li>
+                <li><FileText size={16} /> MSME / Udyam Certificate <span className="badge badge-secondary ml-auto">{documentUploads.udyamCertificateUpload || 'None'}</span></li>
                 <li><FileText size={16} /> Udyam Certificate <span className="badge badge-secondary ml-auto">{documentUploads.udyamCertificateUpload || 'None'}</span></li>
               </ul>
             </div>

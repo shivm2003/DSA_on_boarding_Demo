@@ -1,12 +1,11 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Onboarding from './pages/Onboarding/Onboarding';
+import OngoingRegistration from './pages/Onboarding/OngoingRegistration';
 import ReviewQueue from './pages/ReviewQueue/ReviewQueue';
 import Login from './pages/Login/Login';
 import DSADirectory from './pages/DSADirectory/DSADirectory';
-import DSAPortfolio from './pages/DSAPortfolio/DSAPortfolio';
 import ProductLayout from './pages/Product/ProductLayout';
 import ProductDashboard from './pages/Product/ProductDashboard';
 import ProductDSAList from './pages/Product/ProductDSAList';
@@ -25,10 +24,11 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/app" element={<Layout />}>
           <Route index element={<Dashboard />} />
-          <Route path="onboarding" element={<Onboarding />} />
+          <Route path="onboarding" element={<OngoingRegistration />} />
+          <Route path="onboarding/new" element={<Onboarding />} />
+          <Route path="onboarding/:applicationId" element={<Onboarding />} />
           <Route path="applications" element={<ReviewQueue />} />
           <Route path="dsa-directory" element={<DSADirectory />} />
-          <Route path="dsa-portfolio" element={<DSAPortfolio />} />
         </Route>
         <Route path="/product" element={<ProductLayout />}>
           <Route index element={<ProductDashboard />} />

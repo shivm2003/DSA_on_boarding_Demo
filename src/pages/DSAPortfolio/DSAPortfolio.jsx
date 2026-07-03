@@ -1,34 +1,9 @@
 import React from 'react';
 import './DSAPortfolio.css';
 
-const portfolioSummary = [
-  {
-    title: 'Leads this Month',
-    value: '128',
-    subtitle: 'Total leads generated',
-    variant: 'summary-card-primary'
-  },
-  {
-    title: 'Disbursement',
-    value: '₹18.4L',
-    subtitle: 'Amount disbursed this month',
-    variant: 'summary-card-success'
-  },
-  {
-    title: 'Cases in Queue',
-    value: '34',
-    subtitle: 'Pending review or action',
-    variant: 'summary-card-warning'
-  }
-];
-
-const caseList = [
-  { id: 'LD-1023', name: 'Raman Associates', amount: '₹1,25,000', status: 'In Review' },
-  { id: 'LD-1024', name: 'Neha Verma', amount: '₹2,10,000', status: 'Approved' },
-  { id: 'LD-1025', name: 'Amit Sharma', amount: '₹95,000', status: 'Pending' },
-  { id: 'LD-1026', name: 'Priya Singh', amount: '₹3,50,000', status: 'Disbursed' },
-  { id: 'LD-1027', name: 'Sanjay Mehta', amount: '₹1,75,500', status: 'In Progress' }
-];
+// Remove predefined sample data; populate from API/backend instead
+const portfolioSummary = [];
+const caseList = [];
 
 const DSAPortfolio = () => {
   return (

@@ -20,6 +20,11 @@ from .partnership_deed_parser import PartnershipDeedParser
 from .incorporation_certificate_parser import IncorporationCertificateParser
 from .aoa_parser import AoaParser
 from .moa_parser import MoaParser
+from .voter_id_parser import VoterIdParser
+from .passport_parser import PassportParser
+from .driving_license_parser import DrivingLicenseParser
+from .electricity_bill_parser import ElectricityBillParser
+from .rent_agreement_parser import RentAgreementParser
 
 import re
 
@@ -46,6 +51,11 @@ PARSER_REGISTRY = {
     "INCORPORATION_CERTIFICATE": IncorporationCertificateParser,
     "AOA": AoaParser,
     "MOA": MoaParser,
+    "VOTER_ID": VoterIdParser,
+    "PASSPORT": PassportParser,
+    "DL": DrivingLicenseParser,
+    "ELECTRICITY_BILL": ElectricityBillParser,
+    "RENT_AGREEMENT": RentAgreementParser,
 }
 
 def get_parser(document_type: str) -> BaseParser:

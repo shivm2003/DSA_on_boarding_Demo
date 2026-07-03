@@ -23,30 +23,21 @@ export const initPartnerOcr = () => ({
 });
 
 export const initPartnerUpload = () => ({
-  panUpload: null,
   idProofUpload: null,
   addressProofUpload: null,
-  gstCertificateUpload: null,
-  msmeCertificateUpload: null,
-  udyamCertificateUpload: null
+  panCardUpload: null
 });
 
 export const initPartnerOcrStatus = () => ({
-  panUpload: false,
   idProofUpload: false,
   addressProofUpload: false,
-  gstCertificateUpload: false,
-  msmeCertificateUpload: false,
-  udyamCertificateUpload: false
+  panCardUpload: false
 });
 
 export const initPartnerOcrOutput = () => ({
-  panUpload: '',
   idProofUpload: '',
   addressProofUpload: '',
-  gstCertificateUpload: '',
-  msmeCertificateUpload: '',
-  udyamCertificateUpload: ''
+  panCardUpload: ''
 });
 
 export const adjustPartnerArrays = (count, prev) => {
@@ -67,16 +58,14 @@ export const normalizeDateValue = (value) => value.replace(/[^0-9-]/g, '');
 
 export const serializeFileField = (value) => {
   if (!value) return '';
+  if (Array.isArray(value)) return value.map(serializeFileField).filter(Boolean);
   return value.name || value.filename || String(value);
 };
 
 export const serializePartnerUpload = (partner) => ({
-  panUpload: serializeFileField(partner.panUpload),
   idProofUpload: serializeFileField(partner.idProofUpload),
   addressProofUpload: serializeFileField(partner.addressProofUpload),
-  gstCertificateUpload: serializeFileField(partner.gstCertificateUpload),
-  msmeCertificateUpload: serializeFileField(partner.msmeCertificateUpload),
-  udyamCertificateUpload: serializeFileField(partner.udyamCertificateUpload)
+  panCardUpload: serializeFileField(partner.panCardUpload)
 });
 
 export const serializePartnerOcrDetail = (partner) => ({

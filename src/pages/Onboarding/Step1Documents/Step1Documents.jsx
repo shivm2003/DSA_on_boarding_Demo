@@ -1,9 +1,9 @@
-import React from 'react';
 import { Loader2, FileText } from 'lucide-react';
-import { BASE_DOCS, ENTITY_ADDITIONAL_DOCS } from '../constants';
+import { BASE_DOCS, ENTITY_ADDITIONAL_DOCS, KYC_DOCUMENT_OPTIONS } from '../constants';
 
 const Step1Documents = ({
   formData,
+  setFormData,
   handleEntityTypeChange,
   isVerificationLocked,
   docParseStatus,
@@ -12,10 +12,124 @@ const Step1Documents = ({
   renderVerificationTag,
   renderOcrOutputBox,
   handlePartnerDocumentUpload,
-  verificationCompleted,
-  addPartner
+  addPartner,
+  validationError
 }) => {
+  const getUploadedLabel = (value) => {
+    if (!value) return '';
+    if (Array.isArray(value)) return value.map(file => file.name).join(', ');
+    return value.name || value.filename || String(value);
+  };
+
+  const validateKycFiles = (files, selectedType) => {
+    const option = KYC_DOCUMENT_OPTIONS.find(item => item.value === selectedType);
+    if (!option) {
+      alert('Please select KYC document type first.');
+      return false;
+    }
+
+    const pdfFiles = files.filter(file => file.name.toLowerCase().endsWith('.pdf'));
+    const imageFiles = files.filter(file => /\.(jpe?g|png)$/i.test(file.name));
+
+    if (option.requiresPdfOnly) {
+      if (files.length !== 1 || pdfFiles.length !== 1) {
+        alert(`${option.label} must be uploaded as one PDF file only.`);
+        return false;
+      }
+      return true;
+    }
+
+    if (pdfFiles.length === 1 && files.length === 1) return true;
+    if (pdfFiles.length === 0 && imageFiles.length >= 2 && imageFiles.length === files.length) return true;
+
+    alert(`${option.label} requires either one PDF or minimum two image files.`);
+    return false;
+  };
+
+  const handleKycTypeChange = (event) => {
+    const selectedType = event.target.value;
+    setFormData(prev => {
+      const parsedDocuments = { ...(prev.parsedDocuments || {}) };
+      delete parsedDocuments.addressProofUpload;
+
+      return {
+        ...prev,
+        kycDocumentType: selectedType,
+        kycDocumentNumber: '',
+        addressProofUpload: null,
+        parsedDocuments
+      };
+    });
+  };
+
+  const renderKycUploadField = (label, desc, mandatory) => {
+    const selectedOption = KYC_DOCUMENT_OPTIONS.find(option => option.value === formData.kycDocumentType);
+    const fileUploaded = !!formData.addressProofUpload;
+    const accept = selectedOption?.requiresPdfOnly ? '.pdf' : '.pdf,.jpg,.jpeg,.png';
+
+    return (
+      <div className="input-group full-width" key="addressProofUpload">
+        <div className="doc-label-row">
+          <label>{label}</label>
+          {mandatory
+            ? <span className="badge-mandatory">Mandatory</span>
+            : <span className="badge-optional">Optional</span>
+          }
+        </div>
+
+        <div className="form-grid mb-4">
+          <div className="input-group full-width">
+            <label>KYC Document Type</label>
+            <select name="kycDocumentType" value={formData.kycDocumentType || ''} onChange={handleKycTypeChange}>
+              <option value="">Select document type</option>
+              {KYC_DOCUMENT_OPTIONS.map(option => (
+                <option value={option.value} key={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="file-upload-row">
+          <div className={`file-upload-zone${fileUploaded ? ' has-file' : ''}`}>
+            {docParseStatus.addressProofUpload === 'parsing' ? (
+              <div className="flex flex-col items-center justify-center text-muted" style={{ padding: '1rem' }}>
+                <Loader2 size={32} className="spin mb-2" />
+                <p>Parsing document...</p>
+              </div>
+            ) : (
+              <>
+                <FileText size={24} className="mb-2 text-muted" />
+                <p>{fileUploaded ? `Uploaded: ${getUploadedLabel(formData.addressProofUpload)}` : desc}</p>
+                <input
+                  type="file"
+                  multiple={!selectedOption?.requiresPdfOnly}
+                  disabled={!formData.kycDocumentType}
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (!validateKycFiles(files, formData.kycDocumentType)) {
+                      e.target.value = '';
+                      return;
+                    }
+                    handleDocumentUpload('addressProofUpload', files, formData.kycDocumentType);
+                  }}
+                  accept={accept}
+                />
+                {renderVerificationTag(formData.addressProofUpload, extractionStatus.companyOcr.addressProofUpload)}
+              </>
+            )}
+          </div>
+
+          {renderOcrOutputBox('addressProofUpload')}
+        </div>
+      </div>
+    );
+  };
+
   const renderUploadField = (fieldKey, label, desc, hasOcr = false, mandatory = true) => {
+    if (fieldKey === 'addressProofUpload') {
+      return renderKycUploadField(label, desc, mandatory);
+    }
+
     const fileUploaded = !!formData[fieldKey];
     return (
       <div className="input-group full-width" key={fieldKey}>
@@ -105,11 +219,16 @@ const Step1Documents = ({
         <>
           <div className="section-divider mt-6"></div>
           <h3 className="section-subheading mt-4">
-            Additional Documents — {formData.entityType}
+            {formData.entityType === 'Proprietorship'
+              ? 'Additional Documents — Proprietorship (Minimum one required Documents)'
+              : formData.entityType === 'Partnership'
+              ? 'Additional Documents — Partnership Firm (Minimum one required Documents)'
+              : `Additional Documents — ${formData.entityType}`
+            }
           </h3>
           <p className="text-sm text-muted mb-3">
             {formData.entityType === 'Proprietorship' && 'Required for Proprietorship Firm registration.'}
-            {formData.entityType === 'Partnership' && 'Required for all partners of the Partnership Firm.'}
+            {formData.entityType === 'Partnership' && 'Required for Partnership Firm registration.'}
             {formData.entityType === 'Private/Public Ltd Company' && 'Required for company incorporation and directors.'}
           </p>
           <div className="form-grid">
@@ -117,6 +236,7 @@ const Step1Documents = ({
               renderUploadField(doc.key, doc.label, doc.desc, doc.hasOcr, doc.mandatory)
             )}
           </div>
+          {validationError && <p className="text-error text-sm mt-2">{validationError}</p>}
         </>
       )}
 
@@ -137,88 +257,30 @@ const Step1Documents = ({
               </div>
               <div className="form-grid">
                 <div className="input-group full-width">
-                  <label>PAN</label>
-                  <div className="file-upload-zone">
-                    <FileText size={24} className="mb-2 text-muted" />
-                    <p>Upload partner PAN document</p>
-                    <input
-                      type="file"
-                      onChange={(e) => handlePartnerDocumentUpload(index, 'panUpload', e.target.files[0])}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      disabled={verificationCompleted}
-                    />
-                    {renderVerificationTag(partner.panUpload, extractionStatus.partnerOcr[index])}
-                    {partner.panUpload && <p className="text-success text-sm mt-2">✓ {partner.panUpload.name}</p>}
-                  </div>
-                </div>
-                <div className="input-group full-width">
-                  <label>ID Proof</label>
-                  <div className="file-upload-zone">
-                    <FileText size={24} className="mb-2 text-muted" />
-                    <p>Upload partner ID proof</p>
-                    <input
-                      type="file"
-                      onChange={(e) => handlePartnerDocumentUpload(index, 'idProofUpload', e.target.files[0])}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                    {renderVerificationTag(partner.idProofUpload, extractionStatus.partnerOcr[index])}
-                    {partner.idProofUpload && <p className="text-success text-sm mt-2">✓ {partner.idProofUpload.name}</p>}
-                  </div>
-                </div>
-                <div className="input-group full-width">
                   <label>Address Proof</label>
-                  <div className="file-upload-zone">
+                  <div className={`file-upload-zone${partner.addressProofUpload ? ' has-file' : ''}`}>
                     <FileText size={24} className="mb-2 text-muted" />
-                    <p>Upload partner address proof</p>
+                    <p>{partner.addressProofUpload ? `✓ ${partner.addressProofUpload.name}` : 'Upload partner address proof'}</p>
                     <input
                       type="file"
                       onChange={(e) => handlePartnerDocumentUpload(index, 'addressProofUpload', e.target.files[0])}
                       accept=".pdf,.jpg,.jpeg,.png"
                     />
-                    {renderVerificationTag(partner.addressProofUpload, extractionStatus.partnerOcr[index])}
-                    {partner.addressProofUpload && <p className="text-success text-sm mt-2">✓ {partner.addressProofUpload.name}</p>}
+                    {renderVerificationTag(partner.addressProofUpload, extractionStatus.partnerOcr[index]?.addressProofUpload)}
                   </div>
                 </div>
+
                 <div className="input-group full-width">
-                  <label>GST</label>
-                  <div className="file-upload-zone">
+                  <label>PAN Card</label>
+                  <div className={`file-upload-zone${partner.panCardUpload ? ' has-file' : ''}`}>
                     <FileText size={24} className="mb-2 text-muted" />
-                    <p>Upload partner GST document</p>
+                    <p>{partner.panCardUpload ? `✓ ${partner.panCardUpload.name}` : 'Upload partner PAN card'}</p>
                     <input
                       type="file"
-                      onChange={(e) => handlePartnerDocumentUpload(index, 'gstCertificateUpload', e.target.files[0])}
+                      onChange={(e) => handlePartnerDocumentUpload(index, 'panCardUpload', e.target.files[0])}
                       accept=".pdf,.jpg,.jpeg,.png"
                     />
-                    {renderVerificationTag(partner.gstCertificateUpload, extractionStatus.partnerOcr[index])}
-                    {partner.gstCertificateUpload && <p className="text-success text-sm mt-2">✓ {partner.gstCertificateUpload.name}</p>}
-                  </div>
-                </div>
-                <div className="input-group full-width">
-                  <label>MSME Certificate</label>
-                  <div className="file-upload-zone">
-                    <FileText size={24} className="mb-2 text-muted" />
-                    <p>Upload partner MSME certificate</p>
-                    <input
-                      type="file"
-                      onChange={(e) => handlePartnerDocumentUpload(index, 'msmeCertificateUpload', e.target.files[0])}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                    {renderVerificationTag(partner.msmeCertificateUpload, extractionStatus.partnerOcr[index])}
-                    {partner.msmeCertificateUpload && <p className="text-success text-sm mt-2">✓ {partner.msmeCertificateUpload.name}</p>}
-                  </div>
-                </div>
-                <div className="input-group full-width">
-                  <label>Udyam Certificate</label>
-                  <div className="file-upload-zone">
-                    <FileText size={24} className="mb-2 text-muted" />
-                    <p>Upload partner Udyam certificate</p>
-                    <input
-                      type="file"
-                      onChange={(e) => handlePartnerDocumentUpload(index, 'udyamCertificateUpload', e.target.files[0])}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                    {renderVerificationTag(partner.udyamCertificateUpload, extractionStatus.partnerOcr[index])}
-                    {partner.udyamCertificateUpload && <p className="text-success text-sm mt-2">✓ {partner.udyamCertificateUpload.name}</p>}
+                    {renderVerificationTag(partner.panCardUpload, extractionStatus.partnerOcr[index]?.panCardUpload)}
                   </div>
                 </div>
               </div>

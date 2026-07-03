@@ -3,20 +3,10 @@ import { ArrowRight, TrendingUp, CheckCircle, Clock, AlertTriangle } from 'lucid
 import { NavLink } from 'react-router-dom';
 import './Dashboard.css';
 
-const RECENT_APPLICATIONS = [
-  { id: 'APP-001', name: 'Raman Associates', date: '14-04-2026', status: 'Pending' },
-  { id: 'APP-002', name: 'Shivam Sharma', date: '15-04-2026', status: 'Query Raised' },
-  { id: 'APP-003', name: 'Alok Traders', date: '16-04-2026', status: 'Approved' },
-  { id: 'APP-004', name: 'Neha Verma', date: '16-04-2026', status: 'Approved' },
-  { id: 'APP-005', name: 'Sanjay Mehta', date: '17-04-2026', status: 'Pending' }
-];
+// Remove predefined sample data; component will render real data from API in future
+const RECENT_APPLICATIONS = [];
 
-const TOP_PERFORMERS = [
-  { name: 'Ravi Kapoor', disbursed: '₹6.0L', leads: 54, progress: 85 },
-  { name: 'Priya Singh', disbursed: '₹5.1L', leads: 45, progress: 72 },
-  { name: 'Amit Sharma', disbursed: '₹4.6L', leads: 40, progress: 65 },
-  { name: 'Sanjay Mehta', disbursed: '₹3.8L', leads: 34, progress: 55 },
-];
+const TOP_PERFORMERS = [];
 
 const Dashboard = () => {
   return (
