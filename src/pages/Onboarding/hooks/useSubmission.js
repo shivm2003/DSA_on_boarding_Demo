@@ -1,9 +1,38 @@
+import { useRef, useState } from 'react';
 import { serializeFileField, serializePartnerUpload, serializePartnerOcrDetail } from '../helpers';
 
 /**
  * Handles the construction of the final submission payload and the API call.
  */
 export const useSubmission = (formData, verificationStatus) => {
+  const draftSubmissionIdRef = useRef(null);
+  const hasCreatedSubmissionRef = useRef(false);
+  const [isSavingSubmission, setIsSavingSubmission] = useState(false);
+
+  const setSubmissionId = (submissionId) => {
+    draftSubmissionIdRef.current = submissionId || null;
+    hasCreatedSubmissionRef.current = Boolean(submissionId);
+  };
+
+  const serializeAnyValue = (value) => {
+    if (value instanceof File) {
+      return {
+        name: value.name,
+        size: value.size,
+        type: value.type,
+        lastModified: value.lastModified
+      };
+    }
+    if (Array.isArray(value)) {
+      return value.map(serializeAnyValue);
+    }
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, item]) => [key, serializeAnyValue(item)])
+      );
+    }
+    return value;
+  };
 
   const buildSubmissionData = (data) => ({
     documentUploads: {
@@ -11,7 +40,6 @@ export const useSubmission = (formData, verificationStatus) => {
       idProofUpload: serializeFileField(data.idProofUpload),
       addressProofUpload: serializeFileField(data.addressProofUpload),
       gstCertificateUpload: serializeFileField(data.gstCertificateUpload),
-      msmeCertificateUpload: serializeFileField(data.msmeCertificateUpload),
       udyamCertificateUpload: serializeFileField(data.udyamCertificateUpload),
       partnerUploads: Array.isArray(data.partnerUploads) ? data.partnerUploads.map(serializePartnerUpload) : [],
       payoutOption: data.payoutOption || ''
@@ -71,6 +99,8 @@ export const useSubmission = (formData, verificationStatus) => {
       companyPan: data.companyPan || '',
       individualPan: data.individualPan || '',
       aadharNumber: data.aadharNumber || '',
+      kycDocumentType: data.kycDocumentType || '',
+      kycDocumentNumber: data.kycDocumentNumber || '',
       gstNumber: data.gstNumber || '',
       msmeRegistered: data.msmeRegistered === true || data.msmeRegistered === 'Yes',
       msmeNumber: data.msmeNumber || '',
@@ -117,25 +147,31 @@ export const useSubmission = (formData, verificationStatus) => {
       ifscCode: partner.ifscCode || ''
     })) : [],
     partnerOcrDetails: Array.isArray(data.partnerOcrDetails) ? data.partnerOcrDetails.map(serializePartnerOcrDetail) : [],
-    partnerUploads: Array.isArray(data.partnerUploads) ? data.partnerUploads.map(serializePartnerUpload) : []
+    partnerUploads: Array.isArray(data.partnerUploads) ? data.partnerUploads.map(serializePartnerUpload) : [],
+    parsedDocuments: serializeAnyValue(data.parsedDocuments || {}),
+    allFields: serializeAnyValue(data)
   });
 
-  const handleFinalSubmit = async () => {
+  const saveSubmission = async ({ step = 'Review', status = 'Draft', successMessage = 'Submission saved.' } = {}) => {
     const submission = {
-      id: `APP-${Math.floor(100 + Math.random() * 900)}`,
+      ...(draftSubmissionIdRef.current ? { id: draftSubmissionIdRef.current, dsaCode: draftSubmissionIdRef.current } : {}),
       name: formData.companyName || formData.fullName || 'Unknown',
-      dsaCode: `TEMP-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
       date: new Date().toLocaleDateString('en-GB'),
-      status: 'Pending',
-      step: 'Review',
+      status,
+      step,
+      progress: step === 'Review' ? 100 : undefined,
       data: buildSubmissionData(formData),
       verificationStatus
     };
 
     try {
+      setIsSavingSubmission(true);
       const token = sessionStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/submissions', {
-        method: 'POST',
+      const url = hasCreatedSubmissionRef.current
+        ? `http://localhost:5000/api/submissions/${draftSubmissionIdRef.current}`
+        : 'http://localhost:5000/api/submissions';
+      const response = await fetch(url, {
+        method: hasCreatedSubmissionRef.current ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -143,7 +179,13 @@ export const useSubmission = (formData, verificationStatus) => {
         body: JSON.stringify(submission)
       });
       if (response.ok) {
-        alert('Submission saved to Review Queue (Database).');
+        const savedSubmission = await response.json();
+        if (savedSubmission?.id) {
+          draftSubmissionIdRef.current = savedSubmission.id;
+        }
+        hasCreatedSubmissionRef.current = true;
+        alert(successMessage);
+        return true;
       } else {
         const errData = await response.json();
         throw new Error(errData.error || 'Failed to save submission');
@@ -151,8 +193,28 @@ export const useSubmission = (formData, verificationStatus) => {
     } catch (err) {
       console.error('Failed to save submission', err);
       alert('Failed to save submission to backend database.');
+      return false;
+    } finally {
+      setIsSavingSubmission(false);
     }
   };
 
-  return { handleFinalSubmit };
+  const handleFinalSubmit = () => saveSubmission({
+    step: 'Review',
+    status: 'Completed',
+    successMessage: 'Application submitted successfully and marked Completed.'
+  });
+
+  const handleSaveDraft = (options = {}) => saveSubmission({
+    step: options.step || 'Draft',
+    status: options.status || 'Draft',
+    successMessage: options.successMessage || 'Onboarding saved as draft.'
+  });
+
+  return {
+    setSubmissionId,
+    handleFinalSubmit,
+    handleSaveDraft,
+    isSavingSubmission
+  };
 };

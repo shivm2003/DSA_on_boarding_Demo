@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { DOCUMENT_MATRIX } from '../constants';
+import { useCallback, useState } from 'react';
+import { DOCUMENT_MATRIX, ENTITY_ADDITIONAL_DOCS, STEPS } from '../constants';
 import { useFormState } from './useFormState';
 import { useOtpHandlers } from './useOtpHandlers';
 import { useDocumentUpload } from './useDocumentUpload';
@@ -52,6 +52,57 @@ export const useOnboarding = () => {
   const payoutHandlers = usePayoutHandlers(formData, setFormData);
 
   const submissionHandlers = useSubmission(formData, verificationStatus);
+  const [step1Error, setStep1Error] = useState('');
+
+  // ── Validation Helpers ──
+  const validateStep1Documents = () => {
+    if (formData.entityType === 'Proprietorship' || formData.entityType === 'Partnership') {
+      const additionalKeys = ENTITY_ADDITIONAL_DOCS[formData.entityType]?.map(doc => doc.key) || [];
+      const hasAnyAdditionalDocument = additionalKeys.some(key => !!formData[key]);
+      if (!hasAnyAdditionalDocument) {
+        setStep1Error(`Upload at least one additional document for ${formData.entityType}.`);
+        return false;
+      }
+    }
+    setStep1Error('');
+    return true;
+  };
+
+  const handleNextStep = async () => {
+    if (currentStep === 0 && !validateStep1Documents()) {
+      return;
+    }
+
+    const saved = await submissionHandlers.handleSaveDraft({
+      step: STEPS[currentStep + 1] || 'Draft',
+      status: 'Draft',
+      successMessage: 'Application saved as draft.'
+    });
+    if (!saved) return;
+
+    nextStep();
+  };
+
+  const loadExistingApplication = useCallback((application) => {
+    if (!application) return;
+
+    const restoredFormData = application.data?.allFields || application.data || {};
+    setFormData(prev => ({
+      ...prev,
+      ...restoredFormData
+    }));
+
+    const savedStepIndex = STEPS.indexOf(application.step);
+    if (savedStepIndex >= 0) {
+      setCurrentStep(savedStepIndex);
+    } else if (application.step === 'Review') {
+      setCurrentStep(STEPS.length - 1);
+    } else {
+      setCurrentStep(0);
+    }
+
+    submissionHandlers.setSubmissionId(application.id || application.dsaCode);
+  }, [setCurrentStep, setFormData, submissionHandlers]);
 
   // ── Computed Properties ──
   const isVerificationLocked = verificationCompleted && currentStep <= 4;
@@ -60,7 +111,7 @@ export const useOnboarding = () => {
   // ── Return Unified API ──
   return {
     // Navigation
-    currentStep, setCurrentStep, nextStep, prevStep,
+    currentStep, setCurrentStep, nextStep, prevStep, handleNextStep, loadExistingApplication,
     
     // Banking State
     bankingMode, setBankingMode,
@@ -88,6 +139,7 @@ export const useOnboarding = () => {
     ...documentHandlers,
     ...partnerHandlers,
     ...payoutHandlers,
-    ...submissionHandlers
+    ...submissionHandlers,
+    step1Error
   };
 };

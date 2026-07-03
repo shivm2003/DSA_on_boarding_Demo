@@ -1,4 +1,3 @@
-import React from 'react';
 import { INDIAN_STATES } from '../constants';
 
 const Step2Details = ({
@@ -14,7 +13,6 @@ const Step2Details = ({
   handleVerifyEmailOtp,
   handleMultiSelectChange,
   removeSelectedState,
-  handleEntityTypeChange,
   handleNumberOfPartnersChange
 }) => {
   return (
@@ -35,7 +33,15 @@ const Step2Details = ({
         {(formData.entityType === 'Partnership' || formData.entityType === 'Private/Public Ltd Company') && (
           <div className="input-group">
             <label>Number of Partners/Directors</label>
-            <input type="number" name="numberOfPartners" value={formData.numberOfPartners} onChange={handleNumberOfPartnersChange} disabled={verificationCompleted} min="1" max="10" />
+            <input
+              type="number"
+              name="numberOfPartners"
+              value={formData.numberOfPartners}
+              onChange={handleNumberOfPartnersChange}
+              disabled={verificationCompleted}
+              min={formData.entityType === 'Partnership' ? 2 : 1}
+              max="10"
+            />
             {formData.partnerCountError && <p className="text-error text-sm mt-1">{formData.partnerCountError}</p>}
           </div>
         )}
@@ -48,11 +54,6 @@ const Step2Details = ({
             value={formData.dateOfInc}
             onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.dateOfInc}
           />
-        </div>
-
-        <div className="input-group">
-          <label>Class of Activity</label>
-          <input type="text" name="classOfActivity" value={formData.classOfActivity} onChange={handleInputChange} disabled={verificationCompleted} />
         </div>
 
 
@@ -83,11 +84,6 @@ const Step2Details = ({
         <div className="input-group">
           <label>Pincode</label>
           <input type="text" name="pincode" value={formData.pincode} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.pincode} maxLength={6} />
-        </div>
-
-        <div className="input-group">
-          <label>Service Locations</label>
-          <input type="text" name="serviceLocations" value={formData.serviceLocations} onChange={handleInputChange} disabled={verificationCompleted} placeholder="E.g., North India" />
         </div>
 
         <div className="input-group">
@@ -219,25 +215,24 @@ const Step2Details = ({
           <input type="date" name="dob" value={formData.dob} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.dob} />
         </div>
 
-        <div className="input-group">
-          <label>Designation</label>
-          <input type="text" name="designation" value={formData.designation} onChange={handleInputChange} disabled={verificationCompleted} />
-        </div>
-
-        <div className="input-group">
-          <label>Personal Mobile</label>
-          <input type="tel" name="personalMobile" value={formData.personalMobile} onChange={handleInputChange} disabled={verificationCompleted} maxLength={10} />
-        </div>
+        {formData.entityType !== 'Individual' && (
+          <div className="input-group">
+            <label>Designation</label>
+            <input type="text" name="designation" value={formData.designation} onChange={handleInputChange} disabled={verificationCompleted} />
+          </div>
+        )}
       </div>
 
       {/* KYC & Additional Details */}
       <div className="section-divider mt-6"></div>
       <h3 className="section-subheading">KYC & Additional Details</h3>
       <div className="form-grid">
-        <div className="input-group">
-          <label>Company PAN</label>
-          <input type="text" name="companyPan" value={formData.companyPan} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.companyPan} style={{ textTransform: 'uppercase' }} maxLength={10} />
-        </div>
+        {formData.entityType !== 'Individual' && (
+          <div className="input-group">
+            <label>Company PAN</label>
+            <input type="text" name="companyPan" value={formData.companyPan} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.companyPan} style={{ textTransform: 'uppercase' }} maxLength={10} />
+          </div>
+        )}
 
         <div className="input-group">
           <label>Individual PAN</label>
@@ -246,7 +241,17 @@ const Step2Details = ({
 
         <div className="input-group">
           <label>Aadhaar Number</label>
-          <input type="text" name="aadharNumber" value={formData.aadharNumber} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.aadharNumber} maxLength={12} />
+          <input type="text" name="aadharNumber" value={formData.aadharNumber} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.aadharNumber} maxLength={14} />
+        </div>
+
+        <div className="input-group">
+          <label>KYC Document Type</label>
+          <input type="text" name="kycDocumentType" value={formData.kycDocumentType || ''} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.kycDocumentType} />
+        </div>
+
+        <div className="input-group">
+          <label>KYC Document Number</label>
+          <input type="text" name="kycDocumentNumber" value={formData.kycDocumentNumber || ''} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.kycDocumentNumber} />
         </div>
 
         <div className="input-group">
@@ -254,25 +259,7 @@ const Step2Details = ({
           <input type="text" name="gstNumber" value={formData.gstNumber} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.gstNumber} style={{ textTransform: 'uppercase' }} maxLength={15} />
         </div>
 
-        <div className="input-group">
-          <label>MSME Registered</label>
-          <select name="msmeRegistered" value={formData.msmeRegistered} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.msmeRegistered}>
-            <option value="No">No</option>
-            <option value="Yes">Yes</option>
-          </select>
-        </div>
-
-        {(formData.msmeRegistered === 'Yes' || formData.msmeRegistered === true) && (
-          <div className="input-group">
-            <label>MSME / Udyam Number</label>
-            <input type="text" name="msmeNumber" value={formData.msmeNumber} onChange={handleInputChange} disabled={verificationCompleted} />
-          </div>
-        )}
-
-        <div className="input-group full-width">
-          <label>Key Clients</label>
-          <input type="text" name="keyClients" value={formData.keyClients} onChange={handleInputChange} disabled={verificationCompleted} placeholder="E.g., Client A, Client B" />
-        </div>
+        {/* MSME Registered and Key Clients fields removed per request */}
       </div>
     </div>
   );

@@ -27,21 +27,23 @@ export const usePartnerManagement = (
   const handleEntityTypeChange = (e) => {
     const value = e.target.value;
     const isMultiPerson = value === 'Partnership' || value === 'Private/Public Ltd Company';
+    const minimumCount = value === 'Partnership' ? 2 : 1;
+    const currentCount = Math.max(formData.numberOfPartners || 0, formData.partnerUploads.length || 0, minimumCount);
 
     setExtractionStatus(prev => ({
       ...prev,
       partnerBanks: isMultiPerson
-        ? adjustStatusArray(Math.max(1, formData.numberOfPartners || 1), prev.partnerBanks)
+        ? adjustStatusArray(currentCount, prev.partnerBanks)
         : [],
       partnerOcr: isMultiPerson
-        ? adjustPartnerStatusArray(Math.max(1, formData.numberOfPartners || 1), prev.partnerOcr, initPartnerOcrStatus)
+        ? adjustPartnerStatusArray(currentCount, prev.partnerOcr, initPartnerOcrStatus)
         : []
     }));
 
     setOcrOutputs(prev => ({
       ...prev,
       partners: isMultiPerson
-        ? adjustPartnerStatusArray(Math.max(1, formData.numberOfPartners || 1), prev.partners, initPartnerOcrOutput)
+        ? adjustPartnerStatusArray(currentCount, prev.partners, initPartnerOcrOutput)
         : []
     }));
 
@@ -54,13 +56,19 @@ export const usePartnerManagement = (
         update.partnerOcrDetails = [];
         update.partnerUploads = [];
       } else {
-        const count = prev.numberOfPartners || Math.max(1, prev.partnerUploads.length || 1);
+        const count = Math.max(prev.numberOfPartners || 0, prev.partnerUploads.length || 0, minimumCount);
         const { partnerDetails, partnerBankDetails, partnerOcrDetails } = adjustPartnerArrays(count, prev);
         update.numberOfPartners = count;
         update.partnerDetails = partnerDetails;
         update.partnerBankDetails = partnerBankDetails;
         update.partnerOcrDetails = partnerOcrDetails;
-        update.partnerUploads = prev.partnerUploads.length ? prev.partnerUploads : [initPartnerUpload()];
+        update.partnerUploads = Array.from({ length: count }, (_, idx) => prev.partnerUploads[idx] || initPartnerUpload());
+      }
+
+      if (value === 'Individual') {
+        update.designation = '';
+        update.personalMobile = '';
+        update.companyPan = '';
       }
       return update;
     });
@@ -69,8 +77,10 @@ export const usePartnerManagement = (
   // ── Number of partners change ──
   const handleNumberOfPartnersChange = (e) => {
     const value = Number(e.target.value);
-    const count = Number.isNaN(value) ? 0 : Math.min(10, Math.max(0, value));
-    const error = count === 0 ? 'Number of partners/directors cannot be 0.' : '';
+    const minimumCount = formData.entityType === 'Partnership' ? 2 : 1;
+    const normalized = Number.isNaN(value) ? 0 : Math.min(10, Math.max(0, value));
+    const count = Math.max(normalized, minimumCount);
+    const error = count < minimumCount ? `Number of ${formData.entityType === 'Partnership' ? 'partners' : 'directors'} must be at least ${minimumCount}.` : '';
 
     setExtractionStatus(prev => ({
       ...prev,

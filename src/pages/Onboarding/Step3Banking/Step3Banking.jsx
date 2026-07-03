@@ -1,4 +1,3 @@
-import React from 'react';
 import { CheckCircle, Loader2, FileText } from 'lucide-react';
 
 const Step3Banking = ({
@@ -6,7 +5,8 @@ const Step3Banking = ({
   setFormData,
   bankingMode,
   setBankingMode,
-  setManualBankParsing,
+  handleDocumentUpload,
+  docParseStatus,
   setAaLinkSent,
   setAaPhone,
   aaPhone,
@@ -15,7 +15,6 @@ const Step3Banking = ({
   setAaAccountNumber,
   pennyDropDone,
   setPennyDropDone,
-  manualBankParsing,
   handleInputChange,
   verificationCompleted
 }) => {
@@ -27,7 +26,7 @@ const Step3Banking = ({
       <div className="banking-options">
         <div
           className={`banking-card glass-panel ${bankingMode === 'aa' ? 'selected' : ''}`}
-          onClick={() => { setBankingMode('aa'); setManualBankParsing(false); }}
+          onClick={() => { setBankingMode('aa'); }}
           style={{ cursor: 'pointer', border: bankingMode === 'aa' ? '2px solid var(--primary)' : '2px solid transparent' }}
         >
           <h3>🔗 Account Aggregator</h3>
@@ -143,7 +142,7 @@ const Step3Banking = ({
             <h4 className="mb-4">Upload Bank Statement</h4>
             <p className="text-sm text-muted mb-4">Upload your bank statement PDF. We'll automatically extract Account Number and IFSC Code.</p>
             <div className={`file-upload-zone${formData.bankStatementUpload ? ' has-file' : ''}`}>
-              {manualBankParsing ? (
+              {docParseStatus.bankStatementUpload === 'parsing' ? (
                 <div className="flex flex-col items-center justify-center text-muted" style={{ padding: '1rem' }}>
                   <Loader2 size={32} className="spin mb-2" />
                   <p>Parsing bank statement...</p>
@@ -155,36 +154,10 @@ const Step3Banking = ({
                   <input
                     type="file"
                     accept=".pdf"
-                    onChange={async (e) => {
+                    onChange={(e) => {
                       const file = e.target.files[0];
                       if (!file) return;
-                      setFormData(prev => ({ ...prev, bankStatementUpload: file }));
-                      setManualBankParsing(true);
-                      try {
-                        const fd = new FormData();
-                        fd.append('file', file);
-                        fd.append('documentType', 'BANK_STATEMENT');
-                        const token = sessionStorage.getItem('token');
-                        const res = await fetch('http://localhost:5000/api/parse', {
-                          method: 'POST',
-                          headers: { 'Authorization': `Bearer ${token}` },
-                          body: fd
-                        });
-                        const result = await res.json();
-                        if (result.success && result.extracted_data) {
-                          const ext = result.extracted_data;
-                          setFormData(prev => ({
-                            ...prev,
-                            accountNumber: ext.account_number || prev.accountNumber,
-                            ifscCode: ext.ifsc_code || prev.ifscCode,
-                            bankName: ext.bank_name || prev.bankName
-                          }));
-                        }
-                      } catch (err) {
-                        console.error('Bank statement parse error:', err);
-                      } finally {
-                        setManualBankParsing(false);
-                      }
+                      handleDocumentUpload('bankStatementUpload', file);
                     }}
                   />
                 </>
