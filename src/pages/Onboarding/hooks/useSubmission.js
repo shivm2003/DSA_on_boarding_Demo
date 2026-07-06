@@ -93,7 +93,8 @@ export const useSubmission = (formData, verificationStatus) => {
       fatherName: data.fatherName || '',
       dob: data.dob || '',
       designation: data.designation || '',
-      personalMobile: data.personalMobile || ''
+      personalMobile: data.personalMobile || '',
+      personalAddress: data.personalAddress || ''
     },
     kycDetails: {
       companyPan: data.companyPan || '',
@@ -102,44 +103,46 @@ export const useSubmission = (formData, verificationStatus) => {
       kycDocumentType: data.kycDocumentType || '',
       kycDocumentNumber: data.kycDocumentNumber || '',
       gstNumber: data.gstNumber || '',
+      gstAddress: data.gstAddress || '',
       msmeRegistered: data.msmeRegistered === true || data.msmeRegistered === 'Yes',
       msmeNumber: data.msmeNumber || '',
       idType: data.idType || '',
       keyClients: data.keyClients || ''
     },
     references: {
-      refName: data.refName || '',
-      refContact: data.refContact || '',
-      refRelationship: data.refRelationship || '',
-      refEmail: data.refEmail || ''
+      ref1Name: data.ref1Name || '',
+      ref1Mobile: data.ref1Mobile || '',
+      ref1Address: data.ref1Address || '',
+      ref1Pincode: data.ref1Pincode || '',
+      ref2Name: data.ref2Name || '',
+      ref2Mobile: data.ref2Mobile || '',
+      ref2Address: data.ref2Address || '',
+      ref2Pincode: data.ref2Pincode || ''
     },
     assessment: {
       assessedByName: data.assessedByName || '',
       assessedByDepartment: data.assessedByDepartment || '',
       assessedByDesignation: data.assessedByDesignation || '',
-      meetingDate: data.meetingDate || '',
+      meetingDate: data.meetingDate || ''
+    },
+    spocDetails: {
       spocName: data.spocName || '',
-      spocDesignation: data.spocDesignation || '',
-      spocEmail: data.spocEmail || '',
-      spocPhone: data.spocPhone || ''
+      spocEmployeeCode: data.spocEmployeeCode || '',
+      spocDate: data.spocDate || ''
     },
     consents: {
       esignConsent: data.esignConsent || false,
       channelManagerConsent: data.cmConsent || false
     },
-    referenceLocations: {
-      ref1Inst: data.ref1Inst || '',
-      ref1Location: data.ref1Location || '',
-      ref2Inst: data.ref2Inst || '',
-      ref2Location: data.ref2Location || ''
-    },
     partnerDetails: Array.isArray(data.partnerDetails) ? data.partnerDetails.map((partner) => ({
       fullName: partner.fullName || '',
+      fatherName: partner.fatherName || '',
       dob: partner.dob || '',
       pan: partner.pan || '',
       designation: partner.designation || '',
       role: partner.role || '',
-      sharePercentage: partner.sharePercentage || ''
+      sharePercentage: partner.sharePercentage || '',
+      personalAddress: partner.personalAddress || ''
     })) : [],
     partnerBankDetails: Array.isArray(data.partnerBankDetails) ? data.partnerBankDetails.map((partner) => ({
       bankName: partner.bankName || '',

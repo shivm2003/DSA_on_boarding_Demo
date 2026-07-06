@@ -43,4 +43,17 @@ class GstParser(BaseParser):
         if status_match:
             data['gst_status'] = status_match.group(1)
         
+        # Principal Place of Business / Address
+        address_match = re.search(
+            r'(?:principal\s*place\s*of\s*business|address)\s*[:\-=]?\s*(.+?)(?=\n\s*\n|\n[A-Z]|\Z)',
+            text, re.IGNORECASE | re.DOTALL
+        )
+        if address_match:
+            raw_address = address_match.group(1).strip()
+            # Clean up multi-line address into single line
+            clean_address = re.sub(r'\s*\n\s*', ', ', raw_address)
+            clean_address = re.sub(r',\s*,', ',', clean_address).strip().rstrip(',')
+            if len(clean_address) > 5:
+                data['gst_address'] = clean_address
+        
         return data

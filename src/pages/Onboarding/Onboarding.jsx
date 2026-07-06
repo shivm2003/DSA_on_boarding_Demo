@@ -48,12 +48,12 @@ const Onboarding = () => {
     extractionStatus, handlePartnerDocumentUpload, verificationCompleted, addPartner,
     handleInputChange, handleSendPhoneOtp, handleVerifyPhoneOtp, handleSendAltPhoneOtp, handleVerifyAltPhoneOtp,
     handleSendEmailOtp, handleVerifyEmailOtp, handleMultiSelectChange, removeSelectedState,
-    handleEntityTypeChange, handleNumberOfPartnersChange, bankingMode, setBankingMode,
+    handleEntityTypeChange, handleNumberOfPartnersChange, handlePartnerDetailChange, bankingMode, setBankingMode,
     setManualBankParsing, setAaLinkSent, setAaPhone, aaPhone, aaLinkSent, aaAccountNumber,
     setAaAccountNumber, pennyDropDone, setPennyDropDone, manualBankParsing, handlePayoutSelection,
     handlePaymentModeSelection, handleSendOtp,
     prevStep, handleNextStep, handleFinalSubmit, verificationModalData, setVerificationModalData,
-    handleApproveAndMap, renderVerificationTag, renderOcrOutputBox, step1Error,
+    handleApproveAndMap, renderVerificationTag, step1Error,
     handleSaveDraft, isSavingSubmission, loadExistingApplication
   } = useOnboarding();
 
@@ -136,6 +136,14 @@ const Onboarding = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [formData]);
 
+  const onFinalSubmit = async () => {
+    const success = await handleFinalSubmit();
+    if (success) {
+      isLeavingRef.current = true;
+      navigate('/app/onboarding', { replace: true });
+    }
+  };
+
   const handleBack = () => {
     if (currentStep === 0) {
       leaveOnboarding();
@@ -163,7 +171,7 @@ const Onboarding = () => {
             handleDocumentUpload={handleDocumentUpload} 
             extractionStatus={extractionStatus} 
             renderVerificationTag={renderVerificationTag} 
-            renderOcrOutputBox={renderOcrOutputBox} 
+            step1Error={step1Error}
             handlePartnerDocumentUpload={handlePartnerDocumentUpload} 
             verificationCompleted={verificationCompleted} 
             addPartner={addPartner} 
@@ -174,6 +182,7 @@ const Onboarding = () => {
         {currentStep === 1 && (
           <Step2Details 
             formData={formData} 
+            setFormData={setFormData}
             isVerificationLocked={isVerificationLocked} 
             verificationCompleted={verificationCompleted} 
             handleInputChange={handleInputChange} 
@@ -187,6 +196,7 @@ const Onboarding = () => {
             removeSelectedState={removeSelectedState}
             handleEntityTypeChange={handleEntityTypeChange}
             handleNumberOfPartnersChange={handleNumberOfPartnersChange}
+            handlePartnerDetailChange={handlePartnerDetailChange}
           />
         )}
 
@@ -224,6 +234,7 @@ const Onboarding = () => {
         {currentStep === 4 && (
           <Step5ESigning 
             formData={formData} 
+            setFormData={setFormData}
             handleInputChange={handleInputChange} 
           />
         )}
@@ -232,7 +243,7 @@ const Onboarding = () => {
           <button className="btn btn-secondary" onClick={handleBack} disabled={isSavingSubmission}>
             {isSavingSubmission ? 'Saving...' : 'Back'}
           </button>
-          <button className="btn btn-primary" onClick={currentStep === STEPS.length - 1 ? handleFinalSubmit : handleNextStep} disabled={isSavingSubmission}>
+          <button className="btn btn-primary" onClick={currentStep === STEPS.length - 1 ? onFinalSubmit : handleNextStep} disabled={isSavingSubmission}>
             {isSavingSubmission ? 'Saving...' : currentStep === STEPS.length - 1 ? 'Submit Registration' : 'Save & Next'}
           </button>
         </div>

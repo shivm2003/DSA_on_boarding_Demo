@@ -8,7 +8,22 @@ import { initPartnerUpload, initPartnerOcrStatus, initPartnerOcrOutput } from '.
 export const useDocumentUpload = (formData, setFormData) => {
   const [activeExtraction, setActiveExtraction] = useState(null);
   const [docParseStatus, setDocParseStatus] = useState({});
-  const [verificationModalData, setVerificationModalData] = useState(null);
+  const [verificationQueue, setVerificationQueue] = useState([]);
+  const verificationModalData = verificationQueue[0] || null;
+
+  const setVerificationModalData = (updater) => {
+    setVerificationQueue(prev => {
+      if (prev.length === 0) return prev;
+      if (updater === null) return prev.slice(1);
+      
+      const nextFirst = typeof updater === 'function' ? updater(prev[0]) : updater;
+      return [nextFirst, ...prev.slice(1)];
+    });
+  };
+
+  const enqueueVerification = (data) => {
+    setVerificationQueue(prev => [...prev, data]);
+  };
 
   const [extractionStatus, setExtractionStatus] = useState({
     companyBank: false,
@@ -101,14 +116,20 @@ export const useDocumentUpload = (formData, setFormData) => {
         if (ext.pincode) { updates.pincode = ext.pincode; newLocks.pincode = true; }
         if (ext.state) { updates.state = ext.state; newLocks.state = true; }
 
-        if (fieldName === 'addressProofUpload' && maskedAadhaarNumber) {
-          updates.aadharNumber = maskedAadhaarNumber;
+        const bestAadhaar = maskedAadhaarNumber || aadhaarNumber;
+
+        if (fieldName === 'addressProofUpload' && bestAadhaar) {
+          updates.aadharNumber = bestAadhaar;
           newLocks.aadharNumber = true;
         }
 
         if (fieldName !== 'addressProofUpload') {
-          if (aadhaarNumber) { updates.aadharNumber = aadhaarNumber; newLocks.aadharNumber = true; }
-          if (aadhaarNumber) { updates.kycDocumentNumber = aadhaarNumber; newLocks.kycDocumentNumber = true; }
+          if (bestAadhaar) { 
+            updates.aadharNumber = bestAadhaar; 
+            newLocks.aadharNumber = true; 
+            updates.kycDocumentNumber = bestAadhaar; 
+            newLocks.kycDocumentNumber = true; 
+          }
           if (ext.name && !updates.fullName) { updates.fullName = ext.name; newLocks.fullName = true; }
           if (dob && !updates.dob) { updates.dob = dob; newLocks.dob = true; }
         }
@@ -142,13 +163,22 @@ export const useDocumentUpload = (formData, setFormData) => {
 
       if (docType === 'GST') {
         const legalName = getExtractedValue(ext, 'legalName', 'legal_name');
+        const tradeName = getExtractedValue(ext, 'tradeName', 'trade_name');
+        const gstAddress = getExtractedValue(ext, 'gstAddress', 'gst_address');
         if (ext.gstin) { updates.gstNumber = ext.gstin; newLocks.gstNumber = true; }
         if (legalName) { updates.companyName = legalName; newLocks.companyName = true; }
+        else if (tradeName) { updates.companyName = tradeName; newLocks.companyName = true; }
+        if (gstAddress) { updates.gstAddress = gstAddress; newLocks.gstAddress = true; }
       }
 
       if (docType === 'UDYAM') {
         const enterpriseName = getExtractedValue(ext, 'enterpriseName', 'enterprise_name');
         const officialAddress = getExtractedValue(ext, 'officialAddress', 'official_address');
+        const udyamNumber = getExtractedValue(ext, 'udyamNumber', 'udyamRegistrationNumber', 'udyam_number', 'msme_number', 'msmeNumber');
+        const dateOfInc = normalizeExtractedDate(getExtractedValue(ext, 'dateOfIncorporation', 'date_of_incorporation', 'dateOfInc', 'date_of_commencement', 'dateOfCommencement'));
+        
+        if (udyamNumber) { updates.msmeNumber = udyamNumber; newLocks.msmeNumber = true; }
+        if (dateOfInc) { updates.dateOfInc = dateOfInc; newLocks.dateOfInc = true; }
         if (enterpriseName) { updates.companyName = enterpriseName; newLocks.companyName = true; }
         if (officialAddress) { updates.registeredAddress = officialAddress; newLocks.registeredAddress = true; }
         if (ext.state) updates.state = ext.state;
@@ -309,7 +339,7 @@ export const useDocumentUpload = (formData, setFormData) => {
         [fieldName]: isMatch ? 'match' : 'mismatch'
       }));
 
-      setVerificationModalData({
+      enqueueVerification({
         fieldName,
         docType: detectedType,
         extractedData: mergedExtractedData,
@@ -328,7 +358,7 @@ export const useDocumentUpload = (formData, setFormData) => {
     if (!verificationModalData) return;
     const { fieldName, docType, editedData } = verificationModalData;
     autoPopulateFields(fieldName, docType, editedData);
-    setVerificationModalData(null);
+    setVerificationModalData(null); // Shifts the queue via the custom setter
   };
 
   // ── Partner document upload ──
@@ -386,25 +416,6 @@ export const useDocumentUpload = (formData, setFormData) => {
     );
   };
 
-  const shouldShowOcrOutput = (fieldName) => {
-    return activeExtraction === `companyOcr-${fieldName}` || extractionStatus.companyOcr[fieldName];
-  };
-
-  const getCompanyOcrText = (fieldName) => {
-    const defaultText = 'name - Shahsi';
-    return ocrOutputs.company[fieldName] || defaultText;
-  };
-
-  const renderOcrOutputBox = (fieldName) => {
-    if (!shouldShowOcrOutput(fieldName)) return null;
-    return (
-      <div className="ocr-output-box">
-        <strong>OCR Output</strong>
-        <pre>{getCompanyOcrText(fieldName)}</pre>
-      </div>
-    );
-  };
-
   return {
     activeExtraction,
     setActiveExtraction,
@@ -421,7 +432,6 @@ export const useDocumentUpload = (formData, setFormData) => {
     handleApproveAndMap,
     handlePartnerDocumentUpload,
     addPartner,
-    renderVerificationTag,
-    renderOcrOutputBox
+    renderVerificationTag
   };
 };

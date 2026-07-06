@@ -1,10 +1,12 @@
 export const initPartnerDetail = () => ({
   fullName: '',
+  fatherName: '',
   dob: '',
   pan: '',
   designation: '',
   role: '',
-  sharePercentage: ''
+  sharePercentage: '',
+  personalAddress: ''
 });
 
 export const initPartnerBank = () => ({

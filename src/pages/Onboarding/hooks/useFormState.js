@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { STEPS } from '../constants';
 import { normalizePhoneValue, normalizeDateValue } from '../helpers';
 
@@ -56,6 +56,7 @@ export const useFormState = () => {
     partnerBankDetails: [],
     partnerOcrDetails: [],
     dateOfInc: '',
+    dateOfCommencement: '',
     classOfActivity: '',
     cin: '',
     annualTurnover: '',
@@ -101,6 +102,7 @@ export const useFormState = () => {
     dob: '',
     designation: '',
     personalMobile: '',
+    personalAddress: '',
 
     // KYC
     companyPan: '',
@@ -108,34 +110,65 @@ export const useFormState = () => {
     aadharNumber: '',
     kycDocumentType: '',
     kycDocumentNumber: '',
+    additionalDocumentType: '',
     gstNumber: '',
+    gstAddress: '',
     msmeRegistered: 'No',
     msmeNumber: '',
     idType: 'Voter ID',
     keyClients: '',
 
-    // References
-    refName: '',
-    refContact: '',
-    refRelationship: '',
-    refEmail: '',
+    // Reference Details (2 references for all entity types)
+    ref1Name: '',
+    ref1Mobile: '',
+    ref1Address: '',
+    ref1Pincode: '',
+    ref2Name: '',
+    ref2Mobile: '',
+    ref2Address: '',
+    ref2Pincode: '',
 
-    // Assessment / SPOC
+    // SPOC Details (auto-filled from logged-in user via useEffect below)
+    spocName: '',
+    spocEmployeeCode: '',
+    spocDate: '',
+
+    // Assessment
     assessedByName: 'Shivam Mishra',
     assessedByDepartment: 'BSG',
     assessedByDesignation: 'Manager',
     meetingDate: new Date().toISOString().split('T')[0],
-    spocName: '',
-    spocDesignation: '',
-    spocEmail: '',
-    spocPhone: '',
 
-    // Reference Locations
-    ref1Inst: '',
-    ref1Location: '',
-    ref2Inst: '',
-    ref2Location: ''
+    // E-Sign Consent & OTP
+    esignConsent: false,
+    esignOtpSent: false,
+    esignOtp: '',
+    esignOtpVerified: false,
+    esignOtpError: '',
+
+    // RCU
+    rcuRemarks: ''
   });
+
+  // ── Auto-fill SPOC from logged-in user ──
+  useEffect(() => {
+    try {
+      const userData = JSON.parse(sessionStorage.getItem('user') || '{}');
+      const today = new Date();
+      const dd = String(today.getDate()).padStart(2, '0');
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const yyyy = today.getFullYear();
+
+      setFormData(prev => ({
+        ...prev,
+        spocName: prev.spocName || userData.display_name || '',
+        spocEmployeeCode: prev.spocEmployeeCode || userData.username || '',
+        spocDate: prev.spocDate || `${dd}-${mm}-${yyyy}`
+      }));
+    } catch {
+      // sessionStorage not available or invalid JSON
+    }
+  }, []);
 
   // ── Navigation ──
   const nextStep = () => {
@@ -155,10 +188,10 @@ export const useFormState = () => {
     const { name, value } = e.target;
     let newValue = value;
 
-    if (['phone', 'altContactNumber', 'personalMobile', 'spocPhone'].includes(name)) {
+    if (['phone', 'altContactNumber', 'personalMobile', 'ref1Mobile', 'ref2Mobile'].includes(name)) {
       newValue = normalizePhoneValue(value);
     }
-    if (['dateOfInc', 'dob', 'meetingDate'].includes(name)) {
+    if (['dateOfInc', 'dob', 'meetingDate', 'dateOfCommencement'].includes(name)) {
       newValue = normalizeDateValue(value);
     }
 

@@ -10,7 +10,6 @@ const Step1Documents = ({
   handleDocumentUpload,
   extractionStatus,
   renderVerificationTag,
-  renderOcrOutputBox,
   handlePartnerDocumentUpload,
   addPartner,
   validationError
@@ -119,7 +118,7 @@ const Step1Documents = ({
             )}
           </div>
 
-          {renderOcrOutputBox('addressProofUpload')}
+
         </div>
       </div>
     );
@@ -162,7 +161,7 @@ const Step1Documents = ({
             )}
           </div>
 
-          {hasOcr && renderOcrOutputBox(fieldKey)}
+
         </div>
       </div>
     );
@@ -231,10 +230,27 @@ const Step1Documents = ({
             {formData.entityType === 'Partnership' && 'Required for Partnership Firm registration.'}
             {formData.entityType === 'Private/Public Ltd Company' && 'Required for company incorporation and directors.'}
           </p>
+          <div className="form-grid mb-4">
+            <div className="input-group full-width">
+              <label>Additional Document Type</label>
+              <select 
+                name="additionalDocumentType" 
+                value={formData.additionalDocumentType || ''} 
+                onChange={(e) => setFormData(prev => ({ ...prev, additionalDocumentType: e.target.value }))}
+              >
+                <option value="">Select document type</option>
+                {ENTITY_ADDITIONAL_DOCS[formData.entityType].map(doc => (
+                  <option value={doc.key} key={doc.key}>{doc.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div className="form-grid">
-            {ENTITY_ADDITIONAL_DOCS[formData.entityType].map(doc =>
-              renderUploadField(doc.key, doc.label, doc.desc, doc.hasOcr, doc.mandatory)
-            )}
+            {formData.additionalDocumentType && ENTITY_ADDITIONAL_DOCS[formData.entityType]
+              .filter(doc => doc.key === formData.additionalDocumentType)
+              .map(doc =>
+                renderUploadField(doc.key, doc.label, doc.desc, doc.hasOcr, doc.mandatory)
+              )}
           </div>
           {validationError && <p className="text-error text-sm mt-2">{validationError}</p>}
         </>
