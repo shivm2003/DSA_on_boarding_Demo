@@ -88,3 +88,32 @@ class Submission(db.Model):
             'verificationStatus': self.verificationStatus or {},
             'remarksHistory': self.remarksHistory or []
         }
+
+class BranchMapping(db.Model):
+    __tablename__ = 'branch_mapping'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    branch_name = db.Column(db.String(255))
+    branch_city = db.Column(db.String(255))
+    branch_state = db.Column(db.String(255))
+    branch_id = db.Column(db.String(100))
+    branch_status = db.Column(db.String(50))
+    branch_category = db.Column(db.String(50))
+    branch_opening_date = db.Column(db.String(50))
+    branch_type = db.Column(db.String(50))
+    branch_abm = db.Column(db.String(255))
+    branch_rbm = db.Column(db.String(255))
+    cluster_manager = db.Column(db.String(255))
+    branch_state_head = db.Column(db.String(255))
+    portfolio_manager = db.Column(db.String(255))
+
+class StatePin(db.Model):
+    __tablename__ = 'state_pin'
+
+    id = db.Column(db.Integer, primary_key=True)
+    state = db.Column(db.String(255))
+    district = db.Column(db.String(255))
+    city = db.Column(db.String(255))
+    pincode = db.Column(db.String(20))
+    state_code = db.Column(db.String(20))
+    location_type = db.Column(db.String(100))

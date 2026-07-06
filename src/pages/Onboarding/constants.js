@@ -21,7 +21,7 @@ export const DOCUMENT_MATRIX = {
 };
 
 export const BASE_DOCS = [
-  { key: 'photoUpload', label: 'Photo (2 Recent)', desc: 'Hard copy also to be sent', hasOcr: false, mandatory: true },
+  { key: 'photoUpload', label: 'Photo ', desc: 'Photo', hasOcr: false, mandatory: true },
   { key: 'panUpload', label: 'PAN', desc: 'Upload PAN document', hasOcr: true, mandatory: true },
   { key: 'addressProofUpload', label: 'KYC Document', desc: 'Select KYC type and upload the required file(s)', hasOcr: true, mandatory: true },
   { key: 'dsaTrainingPhotoUpload', label: 'DSA Training Photo', desc: '2 Photos with DSA team and training', hasOcr: false, mandatory: true },

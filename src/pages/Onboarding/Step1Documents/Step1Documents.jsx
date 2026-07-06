@@ -1,4 +1,4 @@
-import { Loader2, FileText } from 'lucide-react';
+import { Loader2, FileText, Eye } from 'lucide-react';
 import { BASE_DOCS, ENTITY_ADDITIONAL_DOCS, KYC_DOCUMENT_OPTIONS } from '../constants';
 
 const Step1Documents = ({
@@ -18,6 +18,17 @@ const Step1Documents = ({
     if (!value) return '';
     if (Array.isArray(value)) return value.map(file => file.name).join(', ');
     return value.name || value.filename || String(value);
+  };
+
+  const handlePreview = (e, fileData) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!fileData) return;
+    const fileToPreview = Array.isArray(fileData) ? fileData[0] : fileData;
+    if (fileToPreview instanceof File || fileToPreview instanceof Blob) {
+      const url = URL.createObjectURL(fileToPreview);
+      window.open(url, '_blank');
+    }
   };
 
   const validateKycFiles = (files, selectedType) => {
@@ -76,18 +87,6 @@ const Step1Documents = ({
           }
         </div>
 
-        <div className="form-grid mb-4">
-          <div className="input-group full-width">
-            <label>KYC Document Type</label>
-            <select name="kycDocumentType" value={formData.kycDocumentType || ''} onChange={handleKycTypeChange}>
-              <option value="">Select document type</option>
-              {KYC_DOCUMENT_OPTIONS.map(option => (
-                <option value={option.value} key={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
         <div className="file-upload-row">
           <div className={`file-upload-zone${fileUploaded ? ' has-file' : ''}`}>
             {docParseStatus.addressProofUpload === 'parsing' ? (
@@ -97,8 +96,30 @@ const Step1Documents = ({
               </div>
             ) : (
               <>
-                <FileText size={24} className="mb-2 text-muted" />
-                <p>{fileUploaded ? `Uploaded: ${getUploadedLabel(formData.addressProofUpload)}` : desc}</p>
+                {fileUploaded && (
+                  <button 
+                    className="preview-btn" 
+                    title="Preview Document"
+                    onClick={(e) => handlePreview(e, formData.addressProofUpload)}
+                  >
+                    <Eye size={18} />
+                  </button>
+                )}
+                <FileText size={24} className="mb-1 text-muted" />
+                
+                <select 
+                  name="kycDocumentType" 
+                  value={formData.kycDocumentType || ''} 
+                  onChange={handleKycTypeChange}
+                  style={{ position: 'relative', zIndex: 3, fontSize: '0.75rem', padding: '4px 8px', maxWidth: '180px', borderRadius: '4px', border: '1px solid var(--border-default)', outline: 'none' }}
+                >
+                  <option value="">Select KYC Type</option>
+                  {KYC_DOCUMENT_OPTIONS.map(option => (
+                    <option value={option.value} key={option.value}>{option.label}</option>
+                  ))}
+                </select>
+
+                <p style={{ marginTop: '8px' }}>{fileUploaded ? `Uploaded: ${getUploadedLabel(formData.addressProofUpload)}` : desc}</p>
                 <input
                   type="file"
                   multiple={!selectedOption?.requiresPdfOnly}
@@ -117,8 +138,6 @@ const Step1Documents = ({
               </>
             )}
           </div>
-
-
         </div>
       </div>
     );
@@ -148,6 +167,15 @@ const Step1Documents = ({
               </div>
             ) : (
               <>
+                {fileUploaded && (
+                  <button 
+                    className="preview-btn" 
+                    title="Preview Document"
+                    onClick={(e) => handlePreview(e, formData[fieldKey])}
+                  >
+                    <Eye size={18} />
+                  </button>
+                )}
                 <FileText size={24} className="mb-2 text-muted" />
                 <p>{fileUploaded ? `✓ ${formData[fieldKey].name}` : desc}</p>
                 <input
@@ -230,27 +258,10 @@ const Step1Documents = ({
             {formData.entityType === 'Partnership' && 'Required for Partnership Firm registration.'}
             {formData.entityType === 'Private/Public Ltd Company' && 'Required for company incorporation and directors.'}
           </p>
-          <div className="form-grid mb-4">
-            <div className="input-group full-width">
-              <label>Additional Document Type</label>
-              <select 
-                name="additionalDocumentType" 
-                value={formData.additionalDocumentType || ''} 
-                onChange={(e) => setFormData(prev => ({ ...prev, additionalDocumentType: e.target.value }))}
-              >
-                <option value="">Select document type</option>
-                {ENTITY_ADDITIONAL_DOCS[formData.entityType].map(doc => (
-                  <option value={doc.key} key={doc.key}>{doc.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
           <div className="form-grid">
-            {formData.additionalDocumentType && ENTITY_ADDITIONAL_DOCS[formData.entityType]
-              .filter(doc => doc.key === formData.additionalDocumentType)
-              .map(doc =>
-                renderUploadField(doc.key, doc.label, doc.desc, doc.hasOcr, doc.mandatory)
-              )}
+            {ENTITY_ADDITIONAL_DOCS[formData.entityType].map(doc =>
+              renderUploadField(doc.key, doc.label, doc.desc, doc.hasOcr, doc.mandatory)
+            )}
           </div>
           {validationError && <p className="text-error text-sm mt-2">{validationError}</p>}
         </>

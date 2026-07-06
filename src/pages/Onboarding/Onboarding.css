@@ -272,9 +272,9 @@
   }
 
   .file-upload-zone {
-    border: 2px dashed rgba(155, 27, 48, 0.2);
-    border-radius: var(--radius-xl);
-    padding: var(--space-6);
+    border: 1.5px solid rgba(155, 27, 48, 0.12);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5) var(--space-4);
     text-align: center;
     background: var(--bg-surface);
     position: relative;
@@ -284,19 +284,19 @@
       background var(--transition-fast),
       box-shadow var(--transition-spring),
       transform var(--transition-spring);
-    min-height: 140px;
+    min-height: 170px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: var(--space-3);
-    box-shadow: var(--shadow-sm);
+    gap: var(--space-2);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
   }
 
   .file-upload-zone:hover {
     border-color: var(--primary);
-    background: rgba(155, 27, 48, 0.02);
-    box-shadow: 0 4px 20px rgba(155, 27, 48, 0.1);
+    background: rgba(155, 27, 48, 0.015);
+    box-shadow: 0 4px 16px rgba(155, 27, 48, 0.08);
     transform: translateY(-2px);
   }
 
@@ -307,18 +307,179 @@
     height: 100%;
     opacity: 0;
     cursor: pointer;
+    z-index: 2;
   }
 
   .file-upload-zone p {
     color: var(--text-muted);
-    font-size: var(--text-sm);
+    font-size: 0.78rem;
     font-weight: 500;
     line-height: 1.4;
+    margin: 0;
+    max-width: 180px;
   }
 
   .file-upload-zone.has-file {
     border-color: var(--success);
     background: var(--success-light);
+  }
+
+  .file-upload-zone.has-file p {
+    color: var(--success);
+    font-weight: 600;
+  }
+
+  /* Lucide icon styling inside upload zone */
+  .file-upload-zone > svg:first-child,
+  .file-upload-zone > .lucide:first-child {
+    color: var(--text-muted);
+    opacity: 0.5;
+    width: 32px;
+    height: 32px;
+    margin-bottom: var(--space-1);
+  }
+
+  /* ── Document Card Grid — overrides form-grid for Step1 doc uploads ── */
+  .step-content .form-grid > .input-group.full-width:has(.file-upload-zone) {
+    grid-column: span 1;
+  }
+
+  .step-content .form-grid:has(> .input-group.full-width .file-upload-zone) {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-4);
+  }
+
+  /* ── Document Label Row (inside card) ── */
+  .doc-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-2);
+    min-height: 22px;
+    width: 100%;
+  }
+
+  .doc-label-row label {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+
+  /* ── Upload button-style label ── */
+  .file-upload-zone::after {
+    content: '📤 Upload';
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--primary);
+    border: 1.5px solid var(--primary);
+    border-radius: var(--radius-full);
+    background: transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+    z-index: 1;
+    margin-top: var(--space-2);
+  }
+
+  .file-upload-zone:hover::after {
+    background: var(--primary);
+    color: white;
+  }
+
+  .file-upload-zone.has-file::after {
+    content: '✓ Uploaded';
+    color: var(--success);
+    border-color: var(--success);
+  }
+
+  .file-upload-zone.has-file:hover::after {
+    background: var(--success);
+    color: white;
+  }
+
+  /* ── Preview Button ── */
+  .preview-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all var(--transition-fast);
+  }
+
+  .preview-btn:hover {
+    background: var(--bg-subtle);
+    color: var(--primary);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+  }
+
+  /* ── OCR Parsing loading shimmer ── */
+  .file-upload-zone .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes doc-card-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .file-upload-zone:has(.spin) {
+    background: linear-gradient(
+      90deg,
+      var(--bg-surface) 0%,
+      rgba(155, 27, 48, 0.04) 25%,
+      rgba(155, 27, 48, 0.08) 50%,
+      rgba(155, 27, 48, 0.04) 75%,
+      var(--bg-surface) 100%
+    );
+    background-size: 200% 100%;
+    animation: doc-card-shimmer 1.8s ease-in-out infinite;
+    border-color: rgba(155, 27, 48, 0.15);
+  }
+
+  .file-upload-zone:has(.spin)::after {
+    content: 'Parsing...';
+    color: var(--primary);
+    border-color: transparent;
+    background: transparent;
+    animation: pulse-text 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-text {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  /* ── Responsive: 2-col on tablets, 1-col on mobile ── */
+  @media (max-width: 900px) {
+    .step-content .form-grid:has(> .input-group.full-width .file-upload-zone) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .step-content .form-grid:has(> .input-group.full-width .file-upload-zone) {
+      grid-template-columns: 1fr;
+    }
+
+    .step-content .form-grid > .input-group.full-width:has(.file-upload-zone) {
+      grid-column: span 1;
+    }
   }
 
   /* ── OCR Output ── */
@@ -368,19 +529,6 @@
     border: 1px solid var(--border-subtle);
   }
 
-  /* ── Document Upload Labels ── */
-  .doc-label-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-2);
-  }
-
-  .doc-label-row label {
-    font-weight: 700;
-    font-size: var(--text-sm);
-    color: var(--text-primary);
-  }
 
   .badge-mandatory {
     font-size: 0.65rem;
@@ -929,8 +1077,8 @@
     }
 
     .file-upload-zone {
-      min-height: 104px;
-      padding: var(--space-4);
+      min-height: 150px;
+      padding: var(--space-4) var(--space-3);
     }
 
     .success-banner {

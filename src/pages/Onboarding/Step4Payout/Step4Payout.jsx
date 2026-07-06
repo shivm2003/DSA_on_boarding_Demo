@@ -1,4 +1,5 @@
 import React from 'react';
+import QRCodeDisplay from '../QRCodeDisplay/QRCodeDisplay';
 
 const Step4Payout = ({ formData, setFormData, handlePayoutSelection, handlePaymentModeSelection }) => {
   return (
@@ -68,6 +69,11 @@ const Step4Payout = ({ formData, setFormData, handlePayoutSelection, handlePayme
           <p className="payment-mode-desc">Receive payment prompt on your registered mobile number</p>
         </div>
       </div>
+
+      {/* Show QR Code when QR Scan is selected */}
+      {formData.paymentMode === 'qr' && (
+        <QRCodeDisplay email={formData.email} />
+      )}
 
     </div>
   );

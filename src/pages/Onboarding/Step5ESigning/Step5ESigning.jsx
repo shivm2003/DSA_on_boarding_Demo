@@ -59,6 +59,7 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
             .rcu-header { background: #1a202c; color: #fff; padding: 16px; text-align: center; margin-bottom: 20px; }
             .rcu-header h2 { margin: 0; font-size: 18px; }
             .rcu-header p { margin: 4px 0 0; font-size: 12px; opacity: 0.8; }
+            .app-applicant-photo { width: 80px; height: 100px; object-fit: cover; border: 1px solid #e2e8f0; border-radius: 4px; margin-left: auto; }
             @media print { body { padding: 12px; } }
           </style>
         </head>
@@ -82,6 +83,23 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
   // ── Helper: check if doc uploaded ──
   const isDocUploaded = (key) => !!formData[key];
 
+  const getUploadedFileName = (value) => {
+    if (!value) return '';
+    if (Array.isArray(value)) return value.map(file => file.name).join(', ');
+    return value.name || value.filename || String(value);
+  };
+
+  const getPhotoUrl = (fileField) => {
+    if (!fileField) return null;
+    const file = Array.isArray(fileField) ? fileField[0] : fileField;
+    if (file instanceof File || file instanceof Blob) {
+      return URL.createObjectURL(file);
+    }
+    return null;
+  };
+
+  const photoUrl = React.useMemo(() => getPhotoUrl(formData.photoUpload) || getPhotoUrl(formData.dsaTrainingPhotoUpload), [formData.photoUpload, formData.dsaTrainingPhotoUpload]);
+
   const isNonIndividual = formData.entityType !== 'Individual';
   const isPartnership = formData.entityType === 'Partnership' || formData.entityType === 'Private/Public Ltd Company';
 
@@ -94,9 +112,55 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
     if (!formData.state) missing.push({ key: 'state', label: 'State', type: 'text' });
     if (!formData.city) missing.push({ key: 'city', label: 'City', type: 'text' });
     
+    if (!formData.serviceState || formData.serviceState.length === 0) missing.push({ key: 'serviceState', label: 'Service States', type: 'text' });
+    if (!formData.serviceBranch || formData.serviceBranch.length === 0) missing.push({ key: 'serviceBranch', label: 'Serving Branch', type: 'text' });
+    
+    if (!formData.email) missing.push({ key: 'email', label: 'Email Address', type: 'email' });
+    if (!formData.phone) missing.push({ key: 'phone', label: 'Mobile Number', type: 'tel', maxLength: 10 });
+    
+    if (!formData.aadharNumber) missing.push({ key: 'aadharNumber', label: 'Aadhaar Number', type: 'text', maxLength: 14 });
+    if (!formData.kycDocumentType) missing.push({ key: 'kycDocumentType', label: 'KYC Document Type', type: 'text' });
+    
+    if (formData.entityType === 'Individual') {
+      if (!formData.fullName) missing.push({ key: 'fullName', label: 'Full Name', type: 'text' });
+      if (!formData.fatherName) missing.push({ key: 'fatherName', label: "Father's Name", type: 'text' });
+      if (!formData.mothersName) missing.push({ key: 'mothersName', label: "Mother's Name", type: 'text' });
+      if (!formData.dob) missing.push({ key: 'dob', label: 'Date of Birth', type: 'date' });
+      if (!formData.personalAddress) missing.push({ key: 'personalAddress', label: 'Personal Address', type: 'text' });
+      if (!formData.individualPan) missing.push({ key: 'individualPan', label: 'Individual PAN', type: 'text', maxLength: 10 });
+    } else {
+      if (!formData.companyPan) missing.push({ key: 'companyPan', label: 'Company PAN', type: 'text', maxLength: 10 });
+      
+      // Check partner details
+      if (formData.partnerDetails && formData.partnerDetails.length > 0) {
+        formData.partnerDetails.forEach((p, idx) => {
+          if (!p.fullName) missing.push({ key: `p_${idx}_name`, label: `Partner ${idx+1} Full Name`, type: 'text' });
+          if (!p.fatherName) missing.push({ key: `p_${idx}_fname`, label: `Partner ${idx+1} Father's Name`, type: 'text' });
+          if (!p.mothersName) missing.push({ key: `p_${idx}_mname`, label: `Partner ${idx+1} Mother's Name`, type: 'text' });
+          if (!p.designation) missing.push({ key: `p_${idx}_desig`, label: `Partner ${idx+1} Designation`, type: 'text' });
+          if (!p.personalAddress) missing.push({ key: `p_${idx}_addr`, label: `Partner ${idx+1} Address`, type: 'text' });
+        });
+      }
+    }
+
     if (formData.entityType === 'Partnership' || formData.entityType === 'Private/Public Ltd Company') {
       if (!formData.numberOfPartners) missing.push({ key: 'numberOfPartners', label: 'Number of Partners/Directors', type: 'number', min: 1, max: 10 });
     }
+    
+    if (!formData.bankName) missing.push({ key: 'bankName', label: 'Bank Name', type: 'text' });
+    if (!formData.accountNumber) missing.push({ key: 'accountNumber', label: 'Account Number', type: 'text' });
+    if (!formData.ifscCode) missing.push({ key: 'ifscCode', label: 'IFSC Code', type: 'text' });
+    
+    if (!formData.ref1Name) missing.push({ key: 'ref1Name', label: 'Reference 1 Name', type: 'text' });
+    if (!formData.ref1Mobile) missing.push({ key: 'ref1Mobile', label: 'Reference 1 Mobile', type: 'tel', maxLength: 10 });
+    if (!formData.ref1Address) missing.push({ key: 'ref1Address', label: 'Reference 1 Address', type: 'text' });
+    
+    if (!formData.ref2Name) missing.push({ key: 'ref2Name', label: 'Reference 2 Name', type: 'text' });
+    if (!formData.ref2Mobile) missing.push({ key: 'ref2Mobile', label: 'Reference 2 Mobile', type: 'tel', maxLength: 10 });
+    if (!formData.ref2Address) missing.push({ key: 'ref2Address', label: 'Reference 2 Address', type: 'text' });
+    
+    if (!formData.spocName) missing.push({ key: 'spocName', label: 'SPOC Name', type: 'text' });
+    if (!formData.spocEmployeeCode) missing.push({ key: 'spocEmployeeCode', label: 'SPOC Employee Code', type: 'text' });
     
     return missing;
   };
@@ -153,7 +217,7 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
         </div>
         <div className="esign-card-inner-divider"></div>
         <div className="esign-input-section">
-          <label className="esign-label">Mobile Number for E-Sign Link</label>
+          <label className="esign-label">Mobile Number for E-Sign Link <span className="text-error">*</span></label>
           <input
             type="tel"
             name="esignPhone"
@@ -272,6 +336,7 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                   <h1>DSA Onboarding Application</h1>
                   <p>Vendor Empanelment & Registration Form</p>
                 </div>
+                {photoUrl && <img src={photoUrl} alt="Applicant" className="app-applicant-photo" />}
                 <div className="app-form-meta">
                   <div className="app-field-label">Application ID</div>
                   <div className="app-field-value">{formData.dsaCode || 'DRAFT'}</div>
@@ -331,6 +396,7 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                   <div className="app-grid">
                     {renderField('Full Name', formData.fullName, true)}
                     {renderField("Father's Name", formData.fatherName)}
+                    {renderField("Mother's Name", formData.mothersName)}
                     {renderField('Date of Birth', formData.dob, true)}
                     {renderField('Address', formData.personalAddress, false, true)}
                   </div>
@@ -343,6 +409,7 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                       <div className="app-grid">
                         {renderField('Full Name', partner.fullName, true)}
                         {renderField("Father's Name", partner.fatherName)}
+                        {renderField("Mother's Name", partner.mothersName)}
                         {renderField('Date of Birth', partner.dob)}
                         {renderField('Designation', partner.designation)}
                         {renderField('Address', partner.personalAddress, false, true)}
@@ -371,7 +438,7 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                 <div className="app-section-title">Serving State</div>
                 <div className="app-grid">
                   {renderField('Service States', (formData.serviceState || []).join(', '))}
-                  {renderField('Serving Branch', formData.serviceBranch)}
+                  {renderField('Serving Branch', Array.isArray(formData.serviceBranch) ? formData.serviceBranch.join(', ') : formData.serviceBranch)}
                 </div>
               </div>
 
@@ -426,6 +493,8 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                     {renderField('Mobile', formData.ref1Mobile, true)}
                     {renderField('Address', formData.ref1Address)}
                     {renderField('Pincode', formData.ref1Pincode)}
+                    {renderField('State', formData.ref1State)}
+                    {renderField('City', formData.ref1City)}
                   </div>
                   <div className="app-ref-block">
                     <strong className="app-ref-title">Reference 2</strong>
@@ -433,6 +502,8 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                     {renderField('Mobile', formData.ref2Mobile, true)}
                     {renderField('Address', formData.ref2Address)}
                     {renderField('Pincode', formData.ref2Pincode)}
+                    {renderField('State', formData.ref2State)}
+                    {renderField('City', formData.ref2City)}
                   </div>
                 </div>
               </div>
@@ -459,7 +530,10 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                       <span className={isDocUploaded(doc.key) ? 'check' : 'cross'}>
                         {isDocUploaded(doc.key) ? '✓' : '✗'}
                       </span>
-                      <span>{doc.label}</span>
+                      <span>
+                        {doc.label}
+                        {isDocUploaded(doc.key) && <span style={{ color: '#718096', fontSize: '11px', marginLeft: '8px' }}>({getUploadedFileName(formData[doc.key])})</span>}
+                      </span>
                       {doc.mandatory && <span className="mandatory-star">*</span>}
                     </div>
                   ))}
@@ -468,7 +542,10 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                       <span className={isDocUploaded(doc.key) ? 'check' : 'cross'}>
                         {isDocUploaded(doc.key) ? '✓' : '✗'}
                       </span>
-                      <span>{doc.label}</span>
+                      <span>
+                        {doc.label}
+                        {isDocUploaded(doc.key) && <span style={{ color: '#718096', fontSize: '11px', marginLeft: '8px' }}>({getUploadedFileName(formData[doc.key])})</span>}
+                      </span>
                       {doc.mandatory && <span className="mandatory-star">*</span>}
                     </div>
                   ))}
@@ -492,10 +569,15 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
           <div className="rcu-form-wrapper">
             <div className="rcu-form" ref={rcuFormRef}>
               {/* RCU Header */}
-              <div className="rcu-header">
+              <div className="rcu-header" style={{ position: 'relative' }}>
                 <img src="/Logo.png" alt="Logo" style={{ height: 36, marginBottom: 8, filter: 'brightness(10)' }} />
                 <h2>Risk Control Unit (RCU) Report</h2>
                 <p>Confidential — For Internal Use Only</p>
+                {photoUrl && (
+                  <div style={{ position: 'absolute', right: '16px', top: '16px', background: 'white', padding: '2px', borderRadius: '4px' }}>
+                    <img src={photoUrl} alt="Applicant" style={{ width: '60px', height: '75px', objectFit: 'cover', display: 'block', borderRadius: '2px' }} />
+                  </div>
+                )}
               </div>
 
               {/* Business Details */}
@@ -543,6 +625,7 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                   <div className="app-grid">
                     {renderField('Full Name', formData.fullName, true)}
                     {renderField("Father's Name", formData.fatherName)}
+                    {renderField("Mother's Name", formData.mothersName)}
                     {renderField('Date of Birth', formData.dob)}
                     {renderField('PAN', formData.individualPan)}
                   </div>
@@ -554,6 +637,8 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                       </div>
                       <div className="app-grid">
                         {renderField('Full Name', partner.fullName, true)}
+                        {renderField("Father's Name", partner.fatherName)}
+                        {renderField("Mother's Name", partner.mothersName)}
                         {renderField('Designation', partner.designation)}
                         {renderField('PAN', partner.pan)}
                         {renderField('Date of Birth', partner.dob)}
@@ -576,6 +661,8 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                     {renderField('Mobile', formData.ref1Mobile, true)}
                     {renderField('Address', formData.ref1Address)}
                     {renderField('Pincode', formData.ref1Pincode)}
+                    {renderField('State', formData.ref1State)}
+                    {renderField('City', formData.ref1City)}
                   </div>
                   <div className="app-ref-block">
                     <strong className="app-ref-title">Reference 2</strong>
@@ -583,6 +670,8 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                     {renderField('Mobile', formData.ref2Mobile, true)}
                     {renderField('Address', formData.ref2Address)}
                     {renderField('Pincode', formData.ref2Pincode)}
+                    {renderField('State', formData.ref2State)}
+                    {renderField('City', formData.ref2City)}
                   </div>
                 </div>
               </div>

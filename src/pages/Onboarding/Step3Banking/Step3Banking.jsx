@@ -52,7 +52,7 @@ const Step3Banking = ({
                 <>
                   <p className="text-sm text-muted mb-4">Enter your registered mobile number to receive the Account Aggregator consent link.</p>
                   <div className="input-group">
-                    <label>Mobile Number</label>
+                    <label>Mobile Number <span className="text-error">*</span></label>
                     <input
                       type="tel"
                       placeholder="Enter 10-digit mobile number"
@@ -87,7 +87,7 @@ const Step3Banking = ({
                   <p className="text-sm text-muted mb-4">Enter your account number for penny drop verification.</p>
                   <div className="form-grid">
                     <div className="input-group">
-                      <label>Account Number</label>
+                      <label>Account Number <span className="text-error">*</span></label>
                       <input
                         type="text"
                         placeholder="Enter account number"
@@ -96,7 +96,7 @@ const Step3Banking = ({
                       />
                     </div>
                     <div className="input-group">
-                      <label>IFSC Code</label>
+                      <label>IFSC Code <span className="text-error">*</span></label>
                       <input
                         type="text"
                         placeholder="Enter IFSC code"
@@ -170,15 +170,15 @@ const Step3Banking = ({
                 <h4 className="mb-3">Extracted Bank Details</h4>
                 <div className="form-grid">
                   <div className="input-group">
-                    <label>Bank Name</label>
+                    <label>Bank Name <span className="text-error">*</span></label>
                     <input type="text" name="bankName" value={formData.bankName} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.bankName} className={formData.bankName ? 'prefilled' : ''} />
                   </div>
                   <div className="input-group">
-                    <label>Account Number</label>
+                    <label>Account Number <span className="text-error">*</span></label>
                     <input type="text" name="accountNumber" value={formData.accountNumber} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.accountNumber} className={formData.accountNumber ? 'prefilled' : ''} />
                   </div>
                   <div className="input-group">
-                    <label>IFSC Code</label>
+                    <label>IFSC Code <span className="text-error">*</span></label>
                     <input type="text" name="ifscCode" value={formData.ifscCode} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.ifscCode} className={formData.ifscCode ? 'prefilled' : ''} />
                   </div>
                 </div>

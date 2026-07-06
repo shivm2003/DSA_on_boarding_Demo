@@ -11,9 +11,8 @@ import ProductDashboard from './pages/Product/ProductDashboard';
 import ProductDSAList from './pages/Product/ProductDSAList';
 import ProductOnboardingList from './pages/Product/ProductOnboardingList';
 import ProductPendingItems from './pages/Product/ProductPendingItems';
-import ProductUploadPayout from './pages/Product/ProductUploadPayout';
-import ProductPayoutManagement from './pages/Product/ProductPayoutManagement';
-import ProductMasterUpload from './pages/Product/ProductMasterUpload';
+import ProductApplicationDetails from './pages/Product/ProductApplicationDetails';
+import SalesforceStatus from './pages/Product/SalesforceStatus';
 import './index.css';
 
 function App() {
@@ -36,9 +35,8 @@ function App() {
           <Route path="dsa-list" element={<ProductDSAList />} />
           <Route path="onboarding-list" element={<ProductOnboardingList />} />
           <Route path="pending-items" element={<ProductPendingItems />} />
-          <Route path="upload-payout" element={<ProductUploadPayout />} />
-          <Route path="payout-management" element={<ProductPayoutManagement />} />
-          <Route path="master-upload" element={<ProductMasterUpload />} />
+          <Route path="application/:id" element={<ProductApplicationDetails />} />
+          <Route path="salesforce/:id" element={<SalesforceStatus />} />
         </Route>
       </Routes>
     </BrowserRouter>

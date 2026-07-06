@@ -200,8 +200,9 @@ export const useFormState = () => {
 
   // ── Multi-select (service states) ──
   const handleMultiSelectChange = (e) => {
+    const { name } = e.target;
     const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-    setFormData(prev => ({ ...prev, serviceState: selectedOptions }));
+    setFormData(prev => ({ ...prev, [name]: selectedOptions }));
   };
 
   const removeSelectedState = (stateToRemove) => {

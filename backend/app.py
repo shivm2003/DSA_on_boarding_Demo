@@ -10,11 +10,12 @@ import fitz
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
+from sqlalchemy import func
 
 load_dotenv()
 
 from db import init_db, db
-from models import Submission, ParsedDocument, User
+from models import Submission, ParsedDocument, User, StatePin
 from parsers import get_parser, classify_document
 from auth import auth_bp, token_required
 
@@ -108,6 +109,48 @@ def unauthorized(e):
 @app.errorhandler(403)
 def forbidden(e):
     return jsonify({"error": "Access denied."}), 403
+
+
+# ─── Pincode Lookup ──────────────────────────────────────────────────────────
+
+@app.route('/api/pincode/<pincode>', methods=['GET'])
+def get_pincode_details(pincode):
+    pin_data = StatePin.query.filter_by(pincode=pincode).first()
+    if pin_data:
+        return jsonify({
+            "status": "Success",
+            "data": {
+                "state": pin_data.state,
+                "city": pin_data.district, # Using district for city, as per original logic or CSV structure
+                "district": pin_data.district,
+                "pincode": pin_data.pincode
+            }
+        })
+    else:
+        return jsonify({"status": "Error", "message": "Pincode not found"}), 404
+
+# ─── Branch Data ────────────────────────────────────────────────────────────
+
+@app.route('/api/branches/states', methods=['GET'])
+def get_branch_states():
+    from models import BranchMapping
+    states = db.session.query(BranchMapping.branch_state).filter(BranchMapping.branch_state.isnot(None), BranchMapping.branch_state != '').distinct().order_by(BranchMapping.branch_state).all()
+    state_list = [s[0] for s in states]
+    return jsonify({"status": "Success", "data": state_list})
+
+@app.route('/api/branches', methods=['GET'])
+def get_branches():
+    from models import BranchMapping
+    states_param = request.args.get('states')
+    query = db.session.query(BranchMapping.branch_name, BranchMapping.branch_state)
+    
+    if states_param:
+        state_list = [s.strip() for s in states_param.split(',')]
+        query = query.filter(BranchMapping.branch_state.in_(state_list))
+        
+    branches = query.order_by(BranchMapping.branch_name).all()
+    branch_list = [{"branch_name": b[0], "branch_state": b[1]} for b in branches]
+    return jsonify({"status": "Success", "data": branch_list})
 
 
 @app.errorhandler(404)
@@ -415,6 +458,235 @@ def update_submission(current_user, sub_id):
         db.session.rollback()
         logger.error(f"[SUBMISSION] Update failed for {sub_id}: {e}")
         return jsonify({"error": "Failed to update submission."}), 500
+
+
+# ─── Product Team Routes ─────────────────────────────────────────────────────
+
+@app.route("/api/product/dashboard", methods=["GET"])
+@token_required
+def get_product_dashboard(current_user):
+    submissions = Submission.query.all()
+    total = len(submissions)
+    pending = sum(1 for s in submissions if s.status == 'Send to Product')
+    approved = sum(1 for s in submissions if s.status == 'Approved')
+    returned = sum(1 for s in submissions if s.status == 'Query Raised')
+    
+    recent = [s.to_dict() for s in submissions if s.status == 'Send to Product']
+    recent.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+
+    return jsonify({
+        "metrics": {
+            "totalApplications": total,
+            "pendingReview": pending,
+            "approvedApplications": approved,
+            "returnedApplications": returned,
+            "salesforcePending": 0,
+            "salesforceCompleted": 0,
+            "salesforceFailed": 0,
+            "todaysApprovals": 0,
+            "monthlyApprovals": 0
+        },
+        "recentApplications": recent[:5],
+        "chartData": []
+    })
+
+@app.route("/api/product/pending", methods=["GET"])
+@token_required
+def get_product_pending(current_user):
+    submissions = Submission.query.filter(Submission.status.in_(['Salesforce Completed', 'Completed'])).order_by(Submission.created_at.desc()).all()
+    return jsonify([sub.to_dict() for sub in submissions])
+
+@app.route("/api/product/application/<sub_id>", methods=["GET"])
+@token_required
+def get_product_application(current_user, sub_id):
+    sub = Submission.query.get(sub_id)
+    if not sub:
+        return jsonify({"error": "Submission not found."}), 404
+    return jsonify(sub.to_dict())
+
+
+@app.route("/api/product/application/<sub_id>", methods=["PUT"])
+@token_required
+def save_product_application(current_user, sub_id):
+    try:
+        sub = Submission.query.get(sub_id)
+        if not sub:
+            return jsonify({"error": "Submission not found."}), 404
+
+        data = request.json
+        if not data:
+            return jsonify({"error": "Request body is required."}), 400
+
+        # Create audit log entry
+        import datetime
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = sub.remarksHistory or []
+        
+        # We can append a general audit log for the save action
+        history.append({
+            "action": "Data Edited",
+            "source": current_user.username if hasattr(current_user, 'username') else 'Product Team',
+            "remarks": "Application details updated via Product Dashboard.",
+            "date": now
+        })
+
+        if 'data' in data:
+            sub.data = data['data']
+        
+        sub.remarksHistory = history
+        db.session.commit()
+        
+        return jsonify(sub.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"[PRODUCT] Update failed for {sub_id}: {e}")
+        return jsonify({"error": "Failed to update submission."}), 500
+
+@app.route("/api/product/application/<sub_id>/return", methods=["POST"])
+@token_required
+def return_product_application(current_user, sub_id):
+    try:
+        sub = Submission.query.get(sub_id)
+        if not sub:
+            return jsonify({"error": "Submission not found."}), 404
+
+        data = request.json
+        remarks = data.get('remarks', '')
+        if not remarks:
+            return jsonify({"error": "Remarks are mandatory for returning an application."}), 400
+
+        import datetime
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = sub.remarksHistory or []
+        history.append({
+            "action": "Query Raised",
+            "source": current_user.username if hasattr(current_user, 'username') else 'Product Team',
+            "remarks": remarks,
+            "date": now
+        })
+
+        sub.status = "Query Raised"
+        sub.remarksHistory = history
+        db.session.commit()
+        
+        return jsonify(sub.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Failed to return application."}), 500
+
+@app.route("/api/product/application/<sub_id>/approve", methods=["POST"])
+@token_required
+def approve_product_application(current_user, sub_id):
+    try:
+        sub = Submission.query.get(sub_id)
+        if not sub:
+            return jsonify({"error": "Submission not found."}), 404
+
+        import datetime
+        import random
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = sub.remarksHistory or []
+        history.append({
+            "action": "Case Approved",
+            "source": current_user.username if hasattr(current_user, 'username') else 'Product Team',
+            "remarks": "Application approved and pushed to Salesforce processing.",
+            "date": now
+        })
+
+        # Mock Salesforce Integration
+        # 80% chance of Success, 20% chance of Failure for demo purposes
+        is_success = random.random() > 0.2
+        
+        if is_success:
+            sf_status = "Salesforce Completed"
+            sf_remark = f"Salesforce sync successful. Generated DSA Code: {sub.dsaCode or 'DSA-NEW-999'}"
+        else:
+            sf_status = "Salesforce Failed"
+            sf_remark = "Salesforce sync failed: CONNECTION_TIMEOUT. Please retry."
+
+        history.append({
+            "action": sf_status,
+            "source": "System (Salesforce)",
+            "remarks": sf_remark,
+            "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+
+        sub.status = sf_status
+        sub.remarksHistory = history
+        
+        # Save a mock salesforce log in the data JSONB for the monitoring page
+        data = sub.data or {}
+        data['salesforceLog'] = {
+            "status": sf_status,
+            "lastSync": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "message": sf_remark,
+            "retryCount": data.get('salesforceLog', {}).get('retryCount', 0)
+        }
+        sub.data = data
+        
+        db.session.commit()
+        
+        return jsonify(sub.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Failed to approve application."}), 500
+
+@app.route("/api/product/salesforce/<sub_id>", methods=["GET"])
+@token_required
+def get_salesforce_status(current_user, sub_id):
+    sub = Submission.query.get(sub_id)
+    if not sub:
+        return jsonify({"error": "Submission not found."}), 404
+    
+    sf_data = (sub.data or {}).get('salesforceLog', {
+        "status": sub.status if "Salesforce" in sub.status else "Not Initiated",
+        "lastSync": "N/A",
+        "message": "Awaiting approval.",
+        "retryCount": 0
+    })
+    return jsonify(sf_data)
+
+@app.route("/api/product/salesforce/<sub_id>/retry", methods=["POST"])
+@token_required
+def retry_salesforce_sync(current_user, sub_id):
+    try:
+        sub = Submission.query.get(sub_id)
+        if not sub:
+            return jsonify({"error": "Submission not found."}), 404
+
+        import datetime
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Force a success on retry
+        sf_status = "Salesforce Completed"
+        sf_remark = f"Salesforce sync successful on retry. Generated DSA Code: {sub.dsaCode or 'DSA-RETRY-888'}"
+        
+        history = sub.remarksHistory or []
+        history.append({
+            "action": sf_status,
+            "source": "System (Salesforce Retry)",
+            "remarks": sf_remark,
+            "date": now
+        })
+
+        sub.status = sf_status
+        sub.remarksHistory = history
+        
+        data = sub.data or {}
+        retry_count = data.get('salesforceLog', {}).get('retryCount', 0) + 1
+        data['salesforceLog'] = {
+            "status": sf_status,
+            "lastSync": now,
+            "message": sf_remark,
+            "retryCount": retry_count
+        }
+        sub.data = data
+        
+        db.session.commit()
+        return jsonify(sub.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Failed to retry Salesforce sync."}), 500
 
 
 # ─── Entry Point ─────────────────────────────────────────────────────────────

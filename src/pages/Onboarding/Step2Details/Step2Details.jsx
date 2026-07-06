@@ -19,44 +19,90 @@ const Step2Details = ({
   handleNumberOfPartnersChange,
   handlePartnerDetailChange
 }) => {
-  const [pincodeLookupStatus, setPincodeLookupStatus] = useState('');
+  const [pincodeLookupStatus, setPincodeLookupStatus] = useState({ main: '', ref1: '', ref2: '' });
+  const [lastLookedUp, setLastLookedUp] = useState({ main: '', ref1: '', ref2: '' });
+  const [dbStates, setDbStates] = useState([]);
+  const [dbBranches, setDbBranches] = useState([]);
 
-  // Auto-lookup state and city when pincode reaches 6 digits
-  const lookupPincode = useCallback(async (pincode) => {
+  useEffect(() => {
+    fetch('http://localhost:5000/api/branches/states')
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'Success') {
+          setDbStates(data.data);
+        }
+      })
+      .catch(err => console.error('Error fetching branch states:', err));
+  }, []);
+
+  useEffect(() => {
+    const states = formData.serviceState?.join(',');
+    if (states) {
+      fetch(`http://localhost:5000/api/branches?states=${encodeURIComponent(states)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'Success') {
+            setDbBranches(data.data);
+          }
+        })
+        .catch(err => console.error('Error fetching branches:', err));
+    } else {
+      setDbBranches([]);
+    }
+  }, [formData.serviceState]);
+
+  const lookupPincode = useCallback(async (pincode, stateField, cityField, lookupKey) => {
     if (!pincode || pincode.length !== 6 || !/^\d{6}$/.test(pincode)) return;
 
-    setPincodeLookupStatus('Looking up...');
+    setPincodeLookupStatus(prev => ({ ...prev, [lookupKey]: 'Looking up...' }));
     try {
-      const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+      const response = await fetch(`http://localhost:5000/api/pincode/${pincode}`);
       const data = await response.json();
 
-      if (data?.[0]?.Status === 'Success' && data[0].PostOffice?.length > 0) {
-        const postOffice = data[0].PostOffice[0];
+      if (data?.status === 'Success' && data.data) {
         setFormData(prev => ({
           ...prev,
-          state: postOffice.State || prev.state,
-          city: postOffice.District || prev.city
+          [stateField]: data.data.state || prev[stateField],
+          [cityField]: data.data.city || prev[cityField]
         }));
-        setPincodeLookupStatus('✓ Found');
-        setTimeout(() => setPincodeLookupStatus(''), 2000);
+        setPincodeLookupStatus(prev => ({ ...prev, [lookupKey]: '✓ Found' }));
+        setTimeout(() => setPincodeLookupStatus(prev => ({ ...prev, [lookupKey]: '' })), 2000);
       } else {
-        setPincodeLookupStatus('Pincode not found');
-        setTimeout(() => setPincodeLookupStatus(''), 3000);
+        setPincodeLookupStatus(prev => ({ ...prev, [lookupKey]: 'Pincode not found' }));
+        setTimeout(() => setPincodeLookupStatus(prev => ({ ...prev, [lookupKey]: '' })), 3000);
       }
     } catch {
-      setPincodeLookupStatus('Lookup failed');
-      setTimeout(() => setPincodeLookupStatus(''), 3000);
+      setPincodeLookupStatus(prev => ({ ...prev, [lookupKey]: 'Lookup failed' }));
+      setTimeout(() => setPincodeLookupStatus(prev => ({ ...prev, [lookupKey]: '' })), 3000);
     }
   }, [setFormData]);
 
-  // Handle pincode input change — trigger lookup when 6 digits
-  const handlePincodeChange = useCallback((e) => {
+  // Handle pincode input change — restrict to 6 digits
+  const handlePincodeChange = useCallback((e, fieldName = 'pincode') => {
     const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-    setFormData(prev => ({ ...prev, pincode: value }));
-    if (value.length === 6) {
-      lookupPincode(value);
+    setFormData(prev => ({ ...prev, [fieldName]: value }));
+  }, [setFormData]);
+
+  useEffect(() => {
+    if (formData.pincode?.length === 6 && formData.pincode !== lastLookedUp.main) {
+      setLastLookedUp(prev => ({ ...prev, main: formData.pincode }));
+      lookupPincode(formData.pincode, 'state', 'city', 'main');
     }
-  }, [setFormData, lookupPincode]);
+  }, [formData.pincode, lastLookedUp.main, lookupPincode]);
+
+  useEffect(() => {
+    if (formData.ref1Pincode?.length === 6 && formData.ref1Pincode !== lastLookedUp.ref1) {
+      setLastLookedUp(prev => ({ ...prev, ref1: formData.ref1Pincode }));
+      lookupPincode(formData.ref1Pincode, 'ref1State', 'ref1City', 'ref1');
+    }
+  }, [formData.ref1Pincode, lastLookedUp.ref1, lookupPincode]);
+
+  useEffect(() => {
+    if (formData.ref2Pincode?.length === 6 && formData.ref2Pincode !== lastLookedUp.ref2) {
+      setLastLookedUp(prev => ({ ...prev, ref2: formData.ref2Pincode }));
+      lookupPincode(formData.ref2Pincode, 'ref2State', 'ref2City', 'ref2');
+    }
+  }, [formData.ref2Pincode, lastLookedUp.ref2, lookupPincode]);
 
   return (
     <div className={`step-content animate-fade-in${isVerificationLocked ? ' locked-step' : ''}`} inert={isVerificationLocked ? "" : undefined}>
@@ -68,14 +114,14 @@ const Step2Details = ({
       <h3 className="section-subheading">Company / Vendor Details</h3>
       <div className="form-grid">
         <div className="input-group">
-          <label>Company / Vendor Name</label>
+          <label>Company / Vendor Name <span className="text-error">*</span></label>
           <input type="text" name="companyName" value={formData.companyName} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.companyName} />
         </div>
 
 
         {(formData.entityType === 'Partnership' || formData.entityType === 'Private/Public Ltd Company') && (
           <div className="input-group">
-            <label>Number of Partners/Directors</label>
+            <label>Number of Partners/Directors <span className="text-error">*</span></label>
             <input
               type="number"
               name="numberOfPartners"
@@ -90,7 +136,7 @@ const Step2Details = ({
         )}
 
         <div className="input-group">
-          <label>Date of Incorporation / DOB</label>
+          <label>Date of Incorporation / DOB <span className="text-error">*</span></label>
           <input
             type="date"
             name="dateOfInc"
@@ -110,7 +156,7 @@ const Step2Details = ({
           <p className="text-sm text-muted mb-3">These fields are auto-populated when a GST certificate is uploaded and parsed.</p>
           <div className="form-grid">
             <div className="input-group">
-              <label>Company / Vendor Name</label>
+              <label>Company / Vendor Name <span className="text-error">*</span></label>
               <input type="text" name="companyName" value={formData.companyName} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.companyName} />
             </div>
 
@@ -135,7 +181,7 @@ const Step2Details = ({
           <p className="text-sm text-muted mb-3">These fields are auto-populated when an MSME / Udyam certificate is uploaded and parsed.</p>
           <div className="form-grid">
             <div className="input-group">
-              <label>Company / Vendor Name</label>
+              <label>Company / Vendor Name <span className="text-error">*</span></label>
               <input type="text" name="companyName" value={formData.companyName} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.companyName} />
             </div>
             <div className="input-group">
@@ -159,31 +205,31 @@ const Step2Details = ({
       <h3 className="section-subheading">Official Address</h3>
       <div className="form-grid">
         <div className="input-group full-width">
-          <label>Registered Address</label>
+          <label>Registered Address <span className="text-error">*</span></label>
           <input type="text" name="registeredAddress" value={formData.registeredAddress} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.registeredAddress} />
         </div>
 
         <div className="input-group">
-          <label>Pincode</label>
+          <label>Pincode <span className="text-error">*</span></label>
           <input
             type="text"
             name="pincode"
             value={formData.pincode}
-            onChange={handlePincodeChange}
+            onChange={(e) => handlePincodeChange(e, 'pincode')}
             disabled={verificationCompleted || !!formData.lockedFields?.pincode}
             maxLength={6}
             inputMode="numeric"
             placeholder="Enter 6-digit pincode"
           />
-          {pincodeLookupStatus && (
-            <p className={`text-sm mt-1 ${pincodeLookupStatus.startsWith('✓') ? 'text-success' : 'text-muted'}`}>
-              {pincodeLookupStatus}
+          {pincodeLookupStatus.main && (
+            <p className={`text-sm mt-1 ${pincodeLookupStatus.main.startsWith('✓') ? 'text-success' : 'text-muted'}`}>
+              {pincodeLookupStatus.main}
             </p>
           )}
         </div>
 
         <div className="input-group">
-          <label>State</label>
+          <label>State <span className="text-error">*</span></label>
           <select name="state" value={formData.state} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.state}>
             <option value="">Select State</option>
             {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -191,7 +237,7 @@ const Step2Details = ({
         </div>
 
         <div className="input-group">
-          <label>City</label>
+          <label>City <span className="text-error">*</span></label>
           <input type="text" name="city" value={formData.city} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.city} />
         </div>
 
@@ -202,12 +248,16 @@ const Step2Details = ({
       <h3 className="section-subheading">Serving State</h3>
       <div className="form-grid">
         <div className="input-group">
-          <label>Service States</label>
-          <select name="serviceState" multiple value={formData.serviceState || []} onChange={handleMultiSelectChange} disabled={verificationCompleted} style={{ height: '100px' }}>
-            {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+          <label>Service States <span className="text-error">*</span></label>
+          <select name="serviceState" multiple value={formData.serviceState || []} onChange={(e) => {
+            const clickedOptions = Array.from(e.target.selectedOptions).map(opt => opt.value);
+            const newStates = Array.from(new Set([...(formData.serviceState || []), ...clickedOptions]));
+            setFormData(prev => ({ ...prev, serviceState: newStates }));
+          }} disabled={verificationCompleted} style={{ height: '100px' }}>
+            {dbStates.length > 0 ? dbStates.map(s => <option key={s} value={s}>{s}</option>) : INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           {formData.serviceState && formData.serviceState.length > 0 && (
-            <div className="selected-states mt-2 flex flex-wrap gap-2">
+            <div className="selected-states mt-2" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {formData.serviceState.map(s => (
                 <span key={s} className="badge badge-secondary flex items-center gap-1">
                   {s}
@@ -221,8 +271,31 @@ const Step2Details = ({
         </div>
 
         <div className="input-group">
-          <label>Serving Branch</label>
-          <input type="text" name="serviceBranch" value={formData.serviceBranch} onChange={handleInputChange} disabled={verificationCompleted} placeholder="Enter serving branch" />
+          <label>Serving Branch <span className="text-error">*</span></label>
+          <select name="serviceBranch" multiple value={formData.serviceBranch || []} onChange={(e) => {
+            const clickedOptions = Array.from(e.target.selectedOptions).map(opt => opt.value);
+            const newBranches = Array.from(new Set([...(formData.serviceBranch || []), ...clickedOptions]));
+            setFormData(prev => ({ ...prev, serviceBranch: newBranches }));
+          }} disabled={verificationCompleted} style={{ height: '100px' }}>
+            {dbBranches.map(b => (
+              <option key={b.branch_name} value={b.branch_name}>{b.branch_name}</option>
+            ))}
+          </select>
+          {Array.isArray(formData.serviceBranch) && formData.serviceBranch.length > 0 && (
+            <div className="selected-states mt-2" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {formData.serviceBranch.map(b => (
+                <span key={b} className="badge badge-secondary flex items-center gap-1">
+                  {b}
+                  {!verificationCompleted && (
+                    <button type="button" onClick={() => {
+                      const newBranches = formData.serviceBranch.filter(br => br !== b);
+                      setFormData(prev => ({ ...prev, serviceBranch: newBranches }));
+                    }} style={{ background: 'none', border: 'none', color: 'currentColor', cursor: 'pointer', padding: 0 }}>&times;</button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
       </div>
@@ -232,7 +305,7 @@ const Step2Details = ({
       <h3 className="section-subheading">Contact Details & Verification</h3>
       <div className="form-grid">
         <div className="input-group">
-          <label>Email Address</label>
+          <label>Email Address <span className="text-error">*</span></label>
           <div className="input-with-button">
             <input
               type="email"
@@ -282,32 +355,7 @@ const Step2Details = ({
           {formData.phoneVerified && <p className="text-success text-sm">Phone verified successfully.</p>}
         </div>
         
-        <div className="input-group">
-          <label>Alternate Contact Number</label>
-          <div className="input-with-button">
-            <input
-              type="tel"
-              name="altContactNumber"
-              value={formData.altContactNumber}
-              onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.altContactNumber}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={10}
-              placeholder="10-digit mobile"
-            />
-            <button type="button" className="btn btn-secondary" onClick={handleSendAltPhoneOtp} disabled={!formData.altContactNumber || formData.altPhoneVerified}>
-              {formData.altPhoneVerified ? 'Verified' : 'Verify Alt Phone'}
-            </button>
-          </div>
-          {formData.showAltPhoneOtp && !formData.altPhoneVerified && (
-            <div className="otp-row">
-              <input type="text" name="altPhoneOtp" value={formData.altPhoneOtp} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.altPhoneOtp} placeholder="Enter OTP" />
-              <button type="button" className="btn btn-primary" onClick={handleVerifyAltPhoneOtp}>Verify OTP</button>
-            </div>
-          )}
-          {formData.altPhoneOtpError && <p className="text-error text-sm">{formData.altPhoneOtpError}</p>}
-          {formData.altPhoneVerified && <p className="text-success text-sm">Alternate phone verified successfully.</p>}
-        </div>
+
       </div>
 
       {/* Personal / Key Person Details Section */}
@@ -316,20 +364,20 @@ const Step2Details = ({
       {formData.entityType === 'Individual' ? (
         <div className="form-grid">
           <div className="input-group">
-            <label>Full Name</label>
+            <label>Full Name <span className="text-error">*</span></label>
             <input type="text" name="fullName" value={formData.fullName} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.fullName} />
           </div>
           <div className="input-group">
-            <label>Father's Name</label>
+            <label>Father's Name <span className="text-error">*</span></label>
             <input type="text" name="fatherName" value={formData.fatherName} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.fatherName} />
           </div>
           <div className="input-group">
-            <label>Date of Birth</label>
-            <input type="date" name="dob" value={formData.dob} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.dob} />
+            <label>Mother's Name <span className="text-error">*</span></label>
+            <input type="text" name="mothersName" value={formData.mothersName} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.mothersName} />
           </div>
-          <div className="input-group full-width">
-            <label>Address</label>
-            <input type="text" name="personalAddress" value={formData.personalAddress} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.personalAddress} placeholder="Personal address" />
+          <div className="input-group">
+            <label>Date of Birth <span className="text-error">*</span></label>
+            <input type="date" name="dob" value={formData.dob} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.dob} />
           </div>
         </div>
       ) : (
@@ -341,24 +389,24 @@ const Step2Details = ({
               </h4>
               <div className="form-grid">
                 <div className="input-group">
-                  <label>Full Name</label>
+                  <label>Full Name <span className="text-error">*</span></label>
                   <input type="text" value={partner.fullName || ''} onChange={(e) => handlePartnerDetailChange(index, 'fullName', e.target.value)} disabled={verificationCompleted} />
                 </div>
                 <div className="input-group">
-                  <label>Father's Name</label>
+                  <label>Father's Name <span className="text-error">*</span></label>
                   <input type="text" value={partner.fatherName || ''} onChange={(e) => handlePartnerDetailChange(index, 'fatherName', e.target.value)} disabled={verificationCompleted} />
                 </div>
                 <div className="input-group">
-                  <label>Date of Birth</label>
+                  <label>Mother's Name <span className="text-error">*</span></label>
+                  <input type="text" value={partner.mothersName || ''} onChange={(e) => handlePartnerDetailChange(index, 'mothersName', e.target.value)} disabled={verificationCompleted} />
+                </div>
+                <div className="input-group">
+                  <label>Date of Birth <span className="text-error">*</span></label>
                   <input type="date" value={partner.dob || ''} onChange={(e) => handlePartnerDetailChange(index, 'dob', e.target.value)} disabled={verificationCompleted} />
                 </div>
                 <div className="input-group">
-                  <label>Designation</label>
+                  <label>Designation <span className="text-error">*</span></label>
                   <input type="text" value={partner.designation || ''} onChange={(e) => handlePartnerDetailChange(index, 'designation', e.target.value)} disabled={verificationCompleted} />
-                </div>
-                <div className="input-group full-width">
-                  <label>Address</label>
-                  <input type="text" value={partner.personalAddress || ''} onChange={(e) => handlePartnerDetailChange(index, 'personalAddress', e.target.value)} disabled={verificationCompleted} placeholder="Personal address" />
                 </div>
               </div>
             </div>
@@ -370,25 +418,29 @@ const Step2Details = ({
       <div className="section-divider mt-6"></div>
       <h3 className="section-subheading">KYC & Additional Details</h3>
       <div className="form-grid">
+        <div className="input-group full-width">
+          <label>Address <span className="text-error">*</span></label>
+          <input type="text" name="personalAddress" value={formData.personalAddress} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.personalAddress} placeholder="Address" />
+        </div>
         {formData.entityType !== 'Individual' && (
           <div className="input-group">
-            <label>Company PAN</label>
+            <label>Company PAN <span className="text-error">*</span></label>
             <input type="text" name="companyPan" value={formData.companyPan} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.companyPan} style={{ textTransform: 'uppercase' }} maxLength={10} />
           </div>
         )}
 
         <div className="input-group">
-          <label>Individual PAN</label>
+          <label>Individual PAN <span className="text-error">*</span></label>
           <input type="text" name="individualPan" value={formData.individualPan} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.individualPan} style={{ textTransform: 'uppercase' }} maxLength={10} />
         </div>
 
         <div className="input-group">
-          <label>Aadhaar Number</label>
+          <label>Aadhaar Number <span className="text-error">*</span></label>
           <input type="text" name="aadharNumber" value={formData.aadharNumber} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.aadharNumber} maxLength={14} />
         </div>
 
         <div className="input-group">
-          <label>KYC Document Type</label>
+          <label>KYC Document Type <span className="text-error">*</span></label>
           <input type="text" name="kycDocumentType" value={formData.kycDocumentType || ''} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.kycDocumentType} />
         </div>
 
@@ -411,20 +463,36 @@ const Step2Details = ({
       <h4 style={{ marginBottom: '0.75rem', fontSize: '0.95rem', fontWeight: 600, color: 'var(--primary-color)' }}>Reference 1</h4>
       <div className="form-grid">
         <div className="input-group">
-          <label>Name</label>
+          <label>Name <span className="text-error">*</span></label>
           <input type="text" name="ref1Name" value={formData.ref1Name} onChange={handleInputChange} disabled={verificationCompleted} placeholder="Reference person name" />
         </div>
         <div className="input-group">
-          <label>Mobile Number</label>
+          <label>Mobile Number <span className="text-error">*</span></label>
           <input type="tel" name="ref1Mobile" value={formData.ref1Mobile} onChange={handleInputChange} disabled={verificationCompleted} inputMode="numeric" pattern="[0-9]*" maxLength={10} placeholder="10-digit mobile" />
         </div>
         <div className="input-group full-width">
-          <label>Address</label>
+          <label>Address <span className="text-error">*</span></label>
           <input type="text" name="ref1Address" value={formData.ref1Address} onChange={handleInputChange} disabled={verificationCompleted} placeholder="Full address" />
         </div>
         <div className="input-group">
-          <label>Pincode</label>
-          <input type="text" name="ref1Pincode" value={formData.ref1Pincode} onChange={handleInputChange} disabled={verificationCompleted} maxLength={6} placeholder="6-digit pincode" />
+          <label>Pincode <span className="text-error">*</span></label>
+          <input type="text" name="ref1Pincode" value={formData.ref1Pincode} onChange={(e) => handlePincodeChange(e, 'ref1Pincode')} disabled={verificationCompleted} maxLength={6} placeholder="6-digit pincode" />
+          {pincodeLookupStatus.ref1 && (
+            <p className={`text-sm mt-1 ${pincodeLookupStatus.ref1.startsWith('✓') ? 'text-success' : 'text-muted'}`}>
+              {pincodeLookupStatus.ref1}
+            </p>
+          )}
+        </div>
+        <div className="input-group">
+          <label>State <span className="text-error">*</span></label>
+          <select name="ref1State" value={formData.ref1State} onChange={handleInputChange} disabled={verificationCompleted}>
+            <option value="">Select State</option>
+            {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div className="input-group">
+          <label>City <span className="text-error">*</span></label>
+          <input type="text" name="ref1City" value={formData.ref1City} onChange={handleInputChange} disabled={verificationCompleted} placeholder="City" />
         </div>
       </div>
 
@@ -432,20 +500,36 @@ const Step2Details = ({
       <h4 style={{ marginBottom: '0.75rem', marginTop: '1.5rem', fontSize: '0.95rem', fontWeight: 600, color: 'var(--primary-color)' }}>Reference 2</h4>
       <div className="form-grid">
         <div className="input-group">
-          <label>Name</label>
+          <label>Name <span className="text-error">*</span></label>
           <input type="text" name="ref2Name" value={formData.ref2Name} onChange={handleInputChange} disabled={verificationCompleted} placeholder="Reference person name" />
         </div>
         <div className="input-group">
-          <label>Mobile Number</label>
+          <label>Mobile Number <span className="text-error">*</span></label>
           <input type="tel" name="ref2Mobile" value={formData.ref2Mobile} onChange={handleInputChange} disabled={verificationCompleted} inputMode="numeric" pattern="[0-9]*" maxLength={10} placeholder="10-digit mobile" />
         </div>
         <div className="input-group full-width">
-          <label>Address</label>
+          <label>Address <span className="text-error">*</span></label>
           <input type="text" name="ref2Address" value={formData.ref2Address} onChange={handleInputChange} disabled={verificationCompleted} placeholder="Full address" />
         </div>
         <div className="input-group">
-          <label>Pincode</label>
-          <input type="text" name="ref2Pincode" value={formData.ref2Pincode} onChange={handleInputChange} disabled={verificationCompleted} maxLength={6} placeholder="6-digit pincode" />
+          <label>Pincode <span className="text-error">*</span></label>
+          <input type="text" name="ref2Pincode" value={formData.ref2Pincode} onChange={(e) => handlePincodeChange(e, 'ref2Pincode')} disabled={verificationCompleted} maxLength={6} placeholder="6-digit pincode" />
+          {pincodeLookupStatus.ref2 && (
+            <p className={`text-sm mt-1 ${pincodeLookupStatus.ref2.startsWith('✓') ? 'text-success' : 'text-muted'}`}>
+              {pincodeLookupStatus.ref2}
+            </p>
+          )}
+        </div>
+        <div className="input-group">
+          <label>State <span className="text-error">*</span></label>
+          <select name="ref2State" value={formData.ref2State} onChange={handleInputChange} disabled={verificationCompleted}>
+            <option value="">Select State</option>
+            {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div className="input-group">
+          <label>City <span className="text-error">*</span></label>
+          <input type="text" name="ref2City" value={formData.ref2City} onChange={handleInputChange} disabled={verificationCompleted} placeholder="City" />
         </div>
       </div>
 
@@ -455,11 +539,11 @@ const Step2Details = ({
       <p className="text-sm text-muted mb-3">Auto-filled from the logged-in user profile.</p>
       <div className="form-grid">
         <div className="input-group">
-          <label>Name</label>
+          <label>Name <span className="text-error">*</span></label>
           <input type="text" name="spocName" value={formData.spocName} disabled style={{ background: 'var(--bg-color)', cursor: 'not-allowed' }} />
         </div>
         <div className="input-group">
-          <label>Employee Code</label>
+          <label>Employee Code <span className="text-error">*</span></label>
           <input type="text" name="spocEmployeeCode" value={formData.spocEmployeeCode} disabled style={{ background: 'var(--bg-color)', cursor: 'not-allowed' }} />
         </div>
         <div className="input-group">

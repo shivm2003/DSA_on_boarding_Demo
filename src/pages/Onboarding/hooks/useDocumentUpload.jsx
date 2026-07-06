@@ -112,9 +112,14 @@ export const useDocumentUpload = (formData, setFormData) => {
         const dob = normalizeExtractedDate(getExtractedValue(ext, 'dob', 'dateOfBirth', 'date_of_birth'));
         const aadhaarNumber = getExtractedValue(ext, 'aadhaarNumber', 'aadhaar_number');
         const maskedAadhaarNumber = getExtractedValue(ext, 'aadhaarMasked', 'aadhaar_masked');
-        if (ext.address) { updates.registeredAddress = ext.address; newLocks.registeredAddress = true; }
-        if (ext.pincode) { updates.pincode = ext.pincode; newLocks.pincode = true; }
-        if (ext.state) { updates.state = ext.state; newLocks.state = true; }
+        if (ext.address) { 
+          updates.registeredAddress = ext.address; 
+          newLocks.registeredAddress = true; 
+          updates.personalAddress = ext.address;
+          newLocks.personalAddress = true;
+        }
+        if (ext.pincode && prev.entityType === 'Individual') { updates.pincode = ext.pincode; newLocks.pincode = true; }
+        if (ext.state && prev.entityType === 'Individual') { updates.state = ext.state; newLocks.state = true; }
 
         const bestAadhaar = maskedAadhaarNumber || aadhaarNumber;
 
@@ -137,14 +142,21 @@ export const useDocumentUpload = (formData, setFormData) => {
 
       if (['VOTER_ID', 'PASSPORT', 'DL', 'ELECTRICITY_BILL', 'RENT_AGREEMENT'].includes(docType)) {
         const address = getExtractedValue(ext, 'address', 'registeredAddress', 'serviceAddress', 'tenantAddress', 'propertyAddress');
-        if (address) { updates.registeredAddress = address; newLocks.registeredAddress = true; }
-        if (ext.pincode) { updates.pincode = ext.pincode; newLocks.pincode = true; }
-        if (ext.state) { updates.state = ext.state; newLocks.state = true; }
-        if (ext.city) { updates.city = ext.city; newLocks.city = true; }
+        if (address) { 
+          updates.registeredAddress = address; 
+          newLocks.registeredAddress = true; 
+          updates.personalAddress = address;
+          newLocks.personalAddress = true;
+        }
+        if (ext.pincode && prev.entityType === 'Individual') { updates.pincode = ext.pincode; newLocks.pincode = true; }
+        if (ext.state && prev.entityType === 'Individual') { updates.state = ext.state; newLocks.state = true; }
+        if (ext.city && prev.entityType === 'Individual') { updates.city = ext.city; newLocks.city = true; }
       }
 
       // fallback mapping for any document with address parser output
-      if (ext.pincode && !updates.pincode) {
+      const isKycDoc = ['AADHAAR', 'VOTER_ID', 'PASSPORT', 'DL', 'ELECTRICITY_BILL', 'RENT_AGREEMENT'].includes(docType);
+      
+      if (ext.pincode && !updates.pincode && (!isKycDoc || prev.entityType === 'Individual')) {
         updates.pincode = ext.pincode;
         newLocks.pincode = true;
       }
@@ -152,11 +164,15 @@ export const useDocumentUpload = (formData, setFormData) => {
         updates.registeredAddress = ext.address;
         newLocks.registeredAddress = true;
       }
-      if (ext.state && !updates.state) {
+      if (ext.address && !updates.personalAddress) {
+        updates.personalAddress = ext.address;
+        newLocks.personalAddress = true;
+      }
+      if (ext.state && !updates.state && (!isKycDoc || prev.entityType === 'Individual')) {
         updates.state = ext.state;
         newLocks.state = true;
       }
-      if (ext.city && !updates.city) {
+      if (ext.city && !updates.city && (!isKycDoc || prev.entityType === 'Individual')) {
         updates.city = ext.city;
         newLocks.city = true;
       }
@@ -164,26 +180,37 @@ export const useDocumentUpload = (formData, setFormData) => {
       if (docType === 'GST') {
         const legalName = getExtractedValue(ext, 'legalName', 'legal_name');
         const tradeName = getExtractedValue(ext, 'tradeName', 'trade_name');
-        const gstAddress = getExtractedValue(ext, 'gstAddress', 'gst_address');
+        const gstAddress = getExtractedValue(ext, 'gstAddress', 'gst_address', 'address');
         if (ext.gstin) { updates.gstNumber = ext.gstin; newLocks.gstNumber = true; }
         if (legalName) { updates.companyName = legalName; newLocks.companyName = true; }
         else if (tradeName) { updates.companyName = tradeName; newLocks.companyName = true; }
         if (gstAddress) { updates.gstAddress = gstAddress; newLocks.gstAddress = true; }
+
+        if (prev.entityType !== 'Individual') {
+          if (gstAddress && !updates.registeredAddress) { updates.registeredAddress = gstAddress; newLocks.registeredAddress = true; }
+          if (ext.pincode && !updates.pincode) { updates.pincode = ext.pincode; newLocks.pincode = true; }
+          if (ext.state && !updates.state) { updates.state = ext.state; newLocks.state = true; }
+          if (ext.city && !updates.city) { updates.city = ext.city; newLocks.city = true; }
+        }
       }
 
       if (docType === 'UDYAM') {
         const enterpriseName = getExtractedValue(ext, 'enterpriseName', 'enterprise_name');
-        const officialAddress = getExtractedValue(ext, 'officialAddress', 'official_address');
+        const officialAddress = getExtractedValue(ext, 'officialAddress', 'official_address', 'address');
         const udyamNumber = getExtractedValue(ext, 'udyamNumber', 'udyamRegistrationNumber', 'udyam_number', 'msme_number', 'msmeNumber');
         const dateOfInc = normalizeExtractedDate(getExtractedValue(ext, 'dateOfIncorporation', 'date_of_incorporation', 'dateOfInc', 'date_of_commencement', 'dateOfCommencement'));
         
         if (udyamNumber) { updates.msmeNumber = udyamNumber; newLocks.msmeNumber = true; }
         if (dateOfInc) { updates.dateOfInc = dateOfInc; newLocks.dateOfInc = true; }
         if (enterpriseName) { updates.companyName = enterpriseName; newLocks.companyName = true; }
-        if (officialAddress) { updates.registeredAddress = officialAddress; newLocks.registeredAddress = true; }
-        if (ext.state) updates.state = ext.state;
-        if (ext.district) { updates.city = ext.district; newLocks.city = true; }
-        if (ext.pincode) updates.pincode = ext.pincode;
+        
+        if (prev.entityType !== 'Individual') {
+          if (officialAddress && !updates.registeredAddress) { updates.registeredAddress = officialAddress; newLocks.registeredAddress = true; }
+          if (ext.state && !updates.state) { updates.state = ext.state; newLocks.state = true; }
+          if (ext.district && !updates.city) { updates.city = ext.district; newLocks.city = true; }
+          else if (ext.city && !updates.city) { updates.city = ext.city; newLocks.city = true; }
+          if (ext.pincode && !updates.pincode) { updates.pincode = ext.pincode; newLocks.pincode = true; }
+        }
       }
 
       if (docType === 'CHEQUE' || docType === 'BANK_STATEMENT') {
@@ -227,8 +254,14 @@ export const useDocumentUpload = (formData, setFormData) => {
       if (docType === 'FIRM_REGISTRATION' || docType === 'SHOP_ESTABLISHMENT' || docType === 'PARTNERSHIP_DEED') {
         const firmName = getExtractedValue(ext, 'firmName', 'firm_name', 'shopName', 'shop_name');
         if (firmName && !updates.companyName) updates.companyName = firmName;
-        const addr = getExtractedValue(ext, 'registeredAddress', 'registered_address', 'shopAddress', 'shop_address');
-        if (addr && !updates.registeredAddress) updates.registeredAddress = addr;
+        const addr = getExtractedValue(ext, 'registeredAddress', 'registered_address', 'shopAddress', 'shop_address', 'address');
+        
+        if (prev.entityType !== 'Individual') {
+          if (addr && !updates.registeredAddress) { updates.registeredAddress = addr; newLocks.registeredAddress = true; }
+          if (ext.pincode && !updates.pincode) { updates.pincode = ext.pincode; newLocks.pincode = true; }
+          if (ext.state && !updates.state) { updates.state = ext.state; newLocks.state = true; }
+          if (ext.city && !updates.city) { updates.city = ext.city; newLocks.city = true; }
+        }
       }
 
       if (docType === 'INCORPORATION_CERTIFICATE' || docType === 'AOA' || docType === 'MOA') {
