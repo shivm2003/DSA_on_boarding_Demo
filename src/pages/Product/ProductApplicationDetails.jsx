@@ -18,7 +18,9 @@ const ProductApplicationDetails = () => {
   const [formData, setFormData] = useState({});
   const [isEditing, setIsEditing] = useState(false);
   const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [returnRemarks, setReturnRemarks] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   // UI State
   const [activeTab, setActiveTab] = useState('details'); // details, documents, ocr, history
@@ -82,7 +84,7 @@ const ProductApplicationDetails = () => {
   };
 
   const handleApprove = async () => {
-    if (!window.confirm("Approve application and push to Salesforce?")) return;
+    setActionLoading(true);
     try {
       const token = sessionStorage.getItem('token');
       const response = await fetch(`http://localhost:5000/api/product/application/${id}/approve`, {
@@ -90,16 +92,21 @@ const ProductApplicationDetails = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
-        alert('Application Approved & Salesforce Integration Triggered!');
         navigate(`/product/salesforce/${id}`);
+      } else {
+        alert('Failed to approve application.');
       }
     } catch (err) {
       alert('Failed to approve application.');
+    } finally {
+      setActionLoading(false);
+      setApproveModalOpen(false);
     }
   };
 
   const handleReturn = async () => {
     if (!returnRemarks.trim()) return alert("Remarks are mandatory");
+    setActionLoading(true);
     try {
       const token = sessionStorage.getItem('token');
       const response = await fetch(`http://localhost:5000/api/product/application/${id}/return`, {
@@ -111,11 +118,15 @@ const ProductApplicationDetails = () => {
         body: JSON.stringify({ remarks: returnRemarks })
       });
       if (response.ok) {
-        alert('Application returned to Channel Manager.');
         navigate('/product/pending-items');
+      } else {
+        alert('Failed to return application.');
       }
     } catch (err) {
       alert('Failed to return application.');
+    } finally {
+      setActionLoading(false);
+      setReturnModalOpen(false);
     }
   };
 
@@ -376,7 +387,7 @@ const ProductApplicationDetails = () => {
               <MessageSquare size={16} /> Return to CM
             </button>
             
-            <button className="btn btn-success flex items-center justify-center gap-2" onClick={handleApprove} style={{ backgroundColor: 'var(--success)', color: 'white', border: 'none' }}>
+            <button className="btn btn-success flex items-center justify-center gap-2" onClick={() => setApproveModalOpen(true)} style={{ backgroundColor: 'var(--success)', color: 'white', border: 'none' }}>
               <CheckCircle size={16} /> Approve & Push
             </button>
           </div>
@@ -384,29 +395,77 @@ const ProductApplicationDetails = () => {
 
       </div>
 
-      {/* Return to CM Modal */}
+      {/* FULL-SCREEN BLOCKING MODAL: Return to CM */}
       {returnModalOpen && (
-        <div className="modal-overlay" onClick={() => setReturnModalOpen(false)}>
-          <div className="modal-content glass-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '100%' }}>
-            <div className="modal-header flex justify-between items-center mb-4 pb-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-              <h2 className="m-0">Return Application</h2>
-              <button className="btn btn-outline btn-sm" onClick={() => setReturnModalOpen(false)}><X size={16} /></button>
-            </div>
-            <div className="modal-body">
-              <div className="input-group">
-                <label>Mandatory Remarks (Reason for returning)</label>
-                <textarea 
-                  className="form-control" 
-                  rows="4" 
-                  value={returnRemarks} 
-                  onChange={e => setReturnRemarks(e.target.value)}
-                  placeholder="E.g., Please upload a clearer copy of the PAN card."
-                ></textarea>
+        <div className="fullscreen-modal-overlay">
+          <div className="fullscreen-modal-backdrop" />
+          <div className="fullscreen-modal-container">
+            <div className="fullscreen-modal-card glass-panel">
+              <div className="fullscreen-modal-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--warning)' }}>
+                <MessageSquare size={48} />
+              </div>
+              <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>Return Application to Channel Manager</h2>
+              <p className="text-muted" style={{ margin: '0 0 1.5rem 0', textAlign: 'center', maxWidth: '450px' }}>
+                Application <strong>{application.id}</strong> will be sent back to the Channel Manager for corrections. This action requires a mandatory remark.
+              </p>
+              <div style={{ width: '100%', maxWidth: '500px' }}>
+                <div className="input-group" style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>Reason for Returning *</label>
+                  <textarea 
+                    className="form-control" 
+                    rows="4" 
+                    value={returnRemarks} 
+                    onChange={e => setReturnRemarks(e.target.value)}
+                    placeholder="E.g., Please upload a clearer copy of the PAN card."
+                    style={{ width: '100%', resize: 'vertical' }}
+                    autoFocus
+                  ></textarea>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button className="btn btn-outline" onClick={() => { setReturnModalOpen(false); setReturnRemarks(''); }} disabled={actionLoading} style={{ minWidth: '140px' }}>
+                  Cancel
+                </button>
+                <button className="btn btn-primary flex items-center justify-center gap-2" onClick={handleReturn} disabled={!returnRemarks.trim() || actionLoading} style={{ minWidth: '180px', backgroundColor: 'var(--warning)', border: 'none' }}>
+                  {actionLoading ? <RefreshCw size={16} className="spin" /> : <MessageSquare size={16} />}
+                  {actionLoading ? 'Returning...' : 'Confirm Return'}
+                </button>
               </div>
             </div>
-            <div className="modal-actions mt-4 flex justify-end gap-2">
-              <button className="btn btn-outline" onClick={() => setReturnModalOpen(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleReturn} disabled={!returnRemarks.trim()}>Confirm Return</button>
+          </div>
+        </div>
+      )}
+
+      {/* FULL-SCREEN BLOCKING MODAL: Approve & Push */}
+      {approveModalOpen && (
+        <div className="fullscreen-modal-overlay">
+          <div className="fullscreen-modal-backdrop" />
+          <div className="fullscreen-modal-container">
+            <div className="fullscreen-modal-card glass-panel">
+              <div className="fullscreen-modal-icon" style={{ background: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)' }}>
+                <CheckCircle size={48} />
+              </div>
+              <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>Approve Application</h2>
+              <p className="text-muted" style={{ margin: '0 0 1.5rem 0', textAlign: 'center', maxWidth: '450px' }}>
+                You are about to approve <strong>{application.id}</strong> and push it to Salesforce for DSA Code generation. This action cannot be undone.
+              </p>
+              
+              <div style={{ width: '100%', maxWidth: '500px', marginBottom: '2rem', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '1.25rem' }}>
+                <div className="flex justify-between mb-2"><span className="text-muted">Company:</span> <strong>{(formData.companyDetails || {}).companyName || 'N/A'}</strong></div>
+                <div className="flex justify-between mb-2"><span className="text-muted">Applicant:</span> <strong>{(formData.applicantDetails || {}).name || 'N/A'}</strong></div>
+                <div className="flex justify-between mb-2"><span className="text-muted">PAN:</span> <strong>{(formData.businessKyc || {}).panNumber || 'N/A'}</strong></div>
+                <div className="flex justify-between"><span className="text-muted">Status:</span> <strong style={{ color: 'var(--success)' }}>→ Approved</strong></div>
+              </div>
+
+              <div className="flex gap-3">
+                <button className="btn btn-outline" onClick={() => setApproveModalOpen(false)} disabled={actionLoading} style={{ minWidth: '140px' }}>
+                  Cancel
+                </button>
+                <button className="btn btn-primary flex items-center justify-center gap-2" onClick={handleApprove} disabled={actionLoading} style={{ minWidth: '220px', backgroundColor: 'var(--success)', border: 'none' }}>
+                  {actionLoading ? <RefreshCw size={16} className="spin" /> : <CheckCircle size={16} />}
+                  {actionLoading ? 'Approving & Pushing...' : 'Confirm Approve & Push'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

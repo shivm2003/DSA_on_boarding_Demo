@@ -301,15 +301,6 @@ export const useDocumentUpload = (formData, setFormData) => {
 
     const expectedDocType = overrideDocType || FIELD_DOC_TYPE_MAP[fieldName] || 'ANY';
 
-    if (expectedDocType === 'ANY') {
-      setDocParseStatus(prev => {
-        const next = { ...prev };
-        delete next[fieldName];
-        return next;
-      });
-      return;
-    }
-
     setDocParseStatus(prev => ({ ...prev, [fieldName]: 'parsing' }));
 
     try {
@@ -345,8 +336,18 @@ export const useDocumentUpload = (formData, setFormData) => {
         ...prev,
         company: { ...prev.company, [fieldName]: rawText }
       }));
+      const fileObjects = files.map((file, i) => ({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified,
+        url: parseResults[i]?.metadata?.file_url || null
+      }));
+      const storedFileValue = fileObjects.length === 1 ? fileObjects[0] : fileObjects;
+
       setFormData(prev => ({
         ...prev,
+        [fieldName]: storedFileValue,
         parsedDocuments: {
           ...(prev.parsedDocuments || {}),
           [fieldName]: {
@@ -357,12 +358,7 @@ export const useDocumentUpload = (formData, setFormData) => {
             rawText,
             markdown: parseResults.map(result => result.markdown || '').filter(Boolean).join('\n\n--- Next file ---\n\n'),
             metadata: parseResults.map(result => result.metadata || {}),
-            files: files.map(file => ({
-              name: file.name,
-              size: file.size,
-              type: file.type,
-              lastModified: file.lastModified
-            }))
+            files: fileObjects
           }
         }
       }));
@@ -395,7 +391,10 @@ export const useDocumentUpload = (formData, setFormData) => {
   };
 
   // ── Partner document upload ──
-  const handlePartnerDocumentUpload = (index, fieldName, file) => {
+  const handlePartnerDocumentUpload = async (index, fieldName, file) => {
+    if (!file) return;
+
+    // Optimistically set the file in formData (as a File) so UI updates immediately
     setFormData(prev => {
       const partnerUploads = [...prev.partnerUploads];
       partnerUploads[index] = {
@@ -404,6 +403,41 @@ export const useDocumentUpload = (formData, setFormData) => {
       };
       return { ...prev, partnerUploads };
     });
+
+    try {
+      const token = sessionStorage.getItem('token');
+      const formPayload = new FormData();
+      formPayload.append('file', file);
+      formPayload.append('documentType', 'ANY'); // No OCR for partner docs yet
+
+      const response = await fetch('http://localhost:5000/api/parse', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formPayload,
+      });
+      const result = await response.json();
+
+      if (result.success && result.metadata?.file_url) {
+        // Replace the File with the structured object containing the URL
+        setFormData(prev => {
+          const partnerUploads = [...prev.partnerUploads];
+          partnerUploads[index] = {
+            ...partnerUploads[index],
+            [fieldName]: {
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              lastModified: file.lastModified,
+              url: result.metadata.file_url
+            }
+          };
+          return { ...prev, partnerUploads };
+        });
+      }
+    } catch (err) {
+      console.error('[PARTNER UPLOAD] Error:', err);
+    }
+
     setExtractionStatus(prev => {
       const partnerOcr = [...prev.partnerOcr];
       partnerOcr[index] = {

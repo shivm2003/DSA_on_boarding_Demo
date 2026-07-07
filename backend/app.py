@@ -182,6 +182,11 @@ def static_files(path):
     """Serve static files."""
     return send_from_directory("static", path)
 
+@app.route("/api/uploads/<path:filename>")
+def serve_upload(filename):
+    """Serve uploaded documents for preview."""
+    return send_from_directory(UPLOAD_DIR, filename)
+
 
 # ─── Document Parsing (Protected) ────────────────────────────────────────────
 
@@ -212,6 +217,27 @@ def parse_document(current_user):
         file_size_bytes = os.path.getsize(str(filepath))
         logger.info(f"[PARSE] User={current_user.username} File={file.filename} Size={file_size_bytes}B")
         logger.info(f"[PARSE] === STARTED PARSING {file.filename} ===")
+
+        frontend_doc_type = request.form.get("documentType")
+        file_url = f"http://localhost:5000/api/uploads/{safe_filename}"
+
+        if frontend_doc_type == 'ANY':
+            logger.info(f"[PARSE] Document type ANY. Skipping OCR and returning upload URL.")
+            return jsonify({
+                "success": True,
+                "document_id": None,
+                "metadata": {
+                    "filename": file.filename,
+                    "file_size_bytes": file_size_bytes,
+                    "parse_time_seconds": 0,
+                    "num_pages": 1,
+                    "document_type": 'ANY',
+                    "file_url": file_url
+                },
+                "extracted_data": {},
+                "raw_text": "",
+                "markdown": "",
+            })
 
         # Step 1 & 2: Text Extraction (PyMuPDF or Docling)
         is_pdf = file.filename.lower().endswith('.pdf')
@@ -277,7 +303,6 @@ def parse_document(current_user):
 
         # Step 3: Classification
         logger.info("[PARSE] Step 3/4: Classifying document type...")
-        frontend_doc_type = request.form.get("documentType")
         if frontend_doc_type:
             doc_type = frontend_doc_type.upper()
             logger.info(f"[PARSE] Received explicit document type from frontend: {doc_type}")
@@ -330,6 +355,7 @@ def parse_document(current_user):
                 "parse_time_seconds": elapsed,
                 "num_pages": len(pages),
                 "document_type": doc_type,
+                "file_url": file_url
             },
             "element_counts": {
                 "text_elements": len(texts) if isinstance(texts, list) else 0,
@@ -344,11 +370,9 @@ def parse_document(current_user):
     except Exception as e:
         logger.error(f"[PARSE] Failed for {file.filename}: {e}")
         logger.debug(traceback.format_exc())
-        return jsonify({"error": "Document parsing failed. Please try again."}), 500
-
-    finally:
         if filepath.exists():
             filepath.unlink()
+        return jsonify({"error": "Document parsing failed. Please try again."}), 500
 
 
 # ─── Submissions (Protected) ─────────────────────────────────────────────────

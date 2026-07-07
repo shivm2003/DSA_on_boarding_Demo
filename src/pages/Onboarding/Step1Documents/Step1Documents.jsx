@@ -1,4 +1,6 @@
-import { Loader2, FileText, Eye } from 'lucide-react';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Loader2, FileText, Eye, X } from 'lucide-react';
 import { BASE_DOCS, ENTITY_ADDITIONAL_DOCS, KYC_DOCUMENT_OPTIONS } from '../constants';
 
 const Step1Documents = ({
@@ -14,6 +16,8 @@ const Step1Documents = ({
   addPartner,
   validationError
 }) => {
+  const [previewModal, setPreviewModal] = useState(null); // { url, name }
+
   const getUploadedLabel = (value) => {
     if (!value) return '';
     if (Array.isArray(value)) return value.map(file => file.name).join(', ');
@@ -27,8 +31,13 @@ const Step1Documents = ({
     const fileToPreview = Array.isArray(fileData) ? fileData[0] : fileData;
     if (fileToPreview instanceof File || fileToPreview instanceof Blob) {
       const url = URL.createObjectURL(fileToPreview);
-      window.open(url, '_blank');
+      setPreviewModal({ url, name: fileToPreview.name });
     }
+  };
+
+  const closePreview = () => {
+    if (previewModal?.url) URL.revokeObjectURL(previewModal.url);
+    setPreviewModal(null);
   };
 
   const validateKycFiles = (files, selectedType) => {
@@ -97,8 +106,8 @@ const Step1Documents = ({
             ) : (
               <>
                 {fileUploaded && (
-                  <button 
-                    className="preview-btn" 
+                  <button
+                    className="preview-btn"
                     title="Preview Document"
                     onClick={(e) => handlePreview(e, formData.addressProofUpload)}
                   >
@@ -106,10 +115,10 @@ const Step1Documents = ({
                   </button>
                 )}
                 <FileText size={24} className="mb-1 text-muted" />
-                
-                <select 
-                  name="kycDocumentType" 
-                  value={formData.kycDocumentType || ''} 
+
+                <select
+                  name="kycDocumentType"
+                  value={formData.kycDocumentType || ''}
                   onChange={handleKycTypeChange}
                   style={{ position: 'relative', zIndex: 3, fontSize: '0.75rem', padding: '4px 8px', maxWidth: '180px', borderRadius: '4px', border: '1px solid var(--border-default)', outline: 'none' }}
                 >
@@ -168,8 +177,8 @@ const Step1Documents = ({
             ) : (
               <>
                 {fileUploaded && (
-                  <button 
-                    className="preview-btn" 
+                  <button
+                    className="preview-btn"
                     title="Preview Document"
                     onClick={(e) => handlePreview(e, formData[fieldKey])}
                   >
@@ -188,8 +197,6 @@ const Step1Documents = ({
               </>
             )}
           </div>
-
-
         </div>
       </div>
     );
@@ -249,8 +256,8 @@ const Step1Documents = ({
             {formData.entityType === 'Proprietorship'
               ? 'Additional Documents — Proprietorship (Minimum one required Documents)'
               : formData.entityType === 'Partnership'
-              ? 'Additional Documents — Partnership Firm (Minimum one required Documents)'
-              : `Additional Documents — ${formData.entityType}`
+                ? 'Additional Documents — Partnership Firm (Minimum one required Documents)'
+                : `Additional Documents — ${formData.entityType}`
             }
           </h3>
           <p className="text-sm text-muted mb-3">
@@ -320,6 +327,21 @@ const Step1Documents = ({
             </button>
           </div>
         </>
+      )}
+
+      {previewModal && createPortal(
+        <div className="doc-preview-overlay" onClick={closePreview}>
+          <div className="doc-preview-container" onClick={(e) => e.stopPropagation()}>
+            <div className="doc-preview-header">
+              <span className="doc-preview-filename">{previewModal.name}</span>
+              <button className="doc-preview-close" onClick={closePreview} title="Close preview">
+                <X size={18} />
+              </button>
+            </div>
+            <iframe src={previewModal.url} title="Document preview" className="doc-preview-iframe" />
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
