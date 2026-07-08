@@ -1,4 +1,5 @@
 import React from 'react';
+import { Check, Info } from 'lucide-react';
 import QRCodeDisplay from '../QRCodeDisplay/QRCodeDisplay';
 
 const Step4Payout = ({ formData, setFormData, handlePayoutSelection, handlePaymentModeSelection }) => {
@@ -9,27 +10,89 @@ const Step4Payout = ({ formData, setFormData, handlePayoutSelection, handlePayme
 
       {/* Payout Options */}
       <div className="payout-cards-row">
+        {/* 0.50% Standard */}
         <div
-          className={`payout-card-new ${formData.payoutOption === 'A' ? 'selected' : ''}`}
-          onClick={() => handlePayoutSelection('A')}
+          className={`payout-card-new ${formData.payoutOption === '0.50' ? 'selected' : ''}`}
+          onClick={() => handlePayoutSelection('0.50')}
         >
           <div className="payout-card-header">
-            <span className="recommended-badge">RECOMMENDED</span>
+            <div className="payout-card-rate-group">
+              <div className="radio-circle">
+                {formData.payoutOption === '0.50' && <div className="radio-inner" />}
+              </div>
+              <div className="payout-card-rate">0.50%</div>
+              <span className="badge-standard">STANDARD</span>
+            </div>
           </div>
-          <h3 className="payout-card-title">Standard Payout (A)</h3>
-          <div className="payout-card-rate">1.50%</div>
-          <p className="payout-card-desc">Standard onboarding rate as per BRE.</p>
+          <ul className="payout-features">
+            <li><Check size={14} className="check-icon" /> Standard payout rate</li>
+            <li><Check size={14} className="check-icon" /> No additional approval required</li>
+          </ul>
         </div>
 
+        {/* 0.75% Standard */}
         <div
-          className={`payout-card-new ${formData.payoutOption === 'B' ? 'selected' : ''}`}
-          onClick={() => handlePayoutSelection('B')}
+          className={`payout-card-new ${formData.payoutOption === '0.75' ? 'selected' : ''}`}
+          onClick={() => handlePayoutSelection('0.75')}
         >
-          <div className="payout-card-header" style={{ height: '24px' }}></div>
-          <h3 className="payout-card-title">Premium Payout (B)</h3>
-          <div className="payout-card-rate">1.75%</div>
-          <p className="payout-card-desc">Requires Business Head Approval.</p>
+          <div className="payout-card-header">
+            <div className="payout-card-rate-group">
+              <div className="radio-circle">
+                {formData.payoutOption === '0.75' && <div className="radio-inner" />}
+              </div>
+              <div className="payout-card-rate">0.75%</div>
+              <span className="badge-standard">STANDARD</span>
+            </div>
+          </div>
+          <ul className="payout-features">
+            <li><Check size={14} className="check-icon" /> Standard payout rate</li>
+            <li><Check size={14} className="check-icon" /> No additional approval required</li>
+          </ul>
         </div>
+
+        {/* Above 0.75% Requires Approval */}
+        <div
+          className={`payout-card-new ${formData.payoutOption === 'above' ? 'selected' : ''}`}
+          onClick={() => handlePayoutSelection('above')}
+        >
+          <div className="payout-card-header">
+            <div className="payout-card-rate-group">
+              <div className="radio-circle">
+                {formData.payoutOption === 'above' && <div className="radio-inner" />}
+              </div>
+              <div className="payout-card-rate">Above 0.75%</div>
+              <span className="badge-approval">REQUIRES APPROVAL</span>
+            </div>
+          </div>
+          <ul className="payout-features">
+            <li><Check size={14} className="check-icon" /> Higher payout rates</li>
+            <li><Check size={14} className="check-icon" /> Subject to Business Head approval</li>
+          </ul>
+        </div>
+      </div>
+
+      {formData.payoutOption === 'above' && (
+        <div className="payout-approval-upload mt-4 p-4 border rounded bg-white">
+          <label className="block mb-2 font-semibold">Upload Business Head Approval <span className="text-error">*</span></label>
+          <input
+            type="file"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                setFormData(prev => ({ ...prev, payoutApprovalUpload: e.target.files[0] }));
+              }
+            }}
+            className="w-full"
+            accept=".pdf,.png,.jpg,.jpeg"
+          />
+          {formData.payoutApprovalUpload && (
+            <p className="text-sm text-success mt-2">✓ Uploaded: {formData.payoutApprovalUpload.name}</p>
+          )}
+        </div>
+      )}
+
+      <div className="payout-info-banner mt-4">
+        <Info size={16} className="info-icon" />
+        <span>Higher payout rates above 0.75% are subject to Business Head approval.</span>
       </div>
 
       {/* Stamp Duty Collection */}

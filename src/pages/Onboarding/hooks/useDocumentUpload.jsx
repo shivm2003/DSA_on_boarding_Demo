@@ -301,7 +301,7 @@ export const useDocumentUpload = (formData, setFormData) => {
 
     const expectedDocType = overrideDocType || FIELD_DOC_TYPE_MAP[fieldName] || 'ANY';
 
-    setDocParseStatus(prev => ({ ...prev, [fieldName]: 'parsing' }));
+    setDocParseStatus(prev => ({ ...prev, [fieldName]: expectedDocType === 'ANY' ? 'validating' : 'parsing' }));
 
     try {
       const token = sessionStorage.getItem('token');
@@ -368,13 +368,15 @@ export const useDocumentUpload = (formData, setFormData) => {
         [fieldName]: isMatch ? 'match' : 'mismatch'
       }));
 
-      enqueueVerification({
-        fieldName,
-        docType: detectedType,
-        extractedData: mergedExtractedData,
-        editedData: mergedExtractedData,
-        rawText: rawText || 'No raw text available'
-      });
+      if (expectedDocType !== 'ANY') {
+        enqueueVerification({
+          fieldName,
+          docType: detectedType,
+          extractedData: mergedExtractedData,
+          editedData: mergedExtractedData,
+          rawText: rawText || 'No raw text available'
+        });
+      }
 
     } catch (err) {
       console.error('[AUTO-PARSE] Error:', err);

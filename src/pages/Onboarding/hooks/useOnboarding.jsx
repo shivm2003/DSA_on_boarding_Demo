@@ -20,9 +20,21 @@ export const useOnboarding = () => {
   const [bankingMode, setBankingMode] = useState(null); // 'aa' | 'manual' | null
   const [aaPhone, setAaPhone] = useState('');
   const [aaLinkSent, setAaLinkSent] = useState(false);
+  const [aaStatusChecked, setAaStatusChecked] = useState(false);
+  const [aaMaskedAccount, setAaMaskedAccount] = useState('');
   const [aaAccountNumber, setAaAccountNumber] = useState('');
+  const [aaBankOtpSent, setAaBankOtpSent] = useState(false);
+  const [aaBankOtp, setAaBankOtp] = useState('');
+  const [aaBankOtpVerified, setAaBankOtpVerified] = useState(false);
+  const [aaBankOtpError, setAaBankOtpError] = useState('');
+
   const [pennyDropDone, setPennyDropDone] = useState(false);
   const [manualBankParsing, setManualBankParsing] = useState(false);
+  
+  const [manualBankOtpSent, setManualBankOtpSent] = useState(false);
+  const [manualBankOtp, setManualBankOtp] = useState('');
+  const [manualBankOtpVerified, setManualBankOtpVerified] = useState(false);
+  const [manualBankOtpError, setManualBankOtpError] = useState('');
 
   const [verificationRunning, setVerificationRunning] = useState(false);
   const [verificationCompleted, setVerificationCompleted] = useState(false);
@@ -117,9 +129,19 @@ export const useOnboarding = () => {
     bankingMode, setBankingMode,
     aaPhone, setAaPhone,
     aaLinkSent, setAaLinkSent,
+    aaStatusChecked, setAaStatusChecked,
+    aaMaskedAccount, setAaMaskedAccount,
     aaAccountNumber, setAaAccountNumber,
+    aaBankOtpSent, setAaBankOtpSent,
+    aaBankOtp, setAaBankOtp,
+    aaBankOtpVerified, setAaBankOtpVerified,
+    aaBankOtpError, setAaBankOtpError,
     pennyDropDone, setPennyDropDone,
     manualBankParsing, setManualBankParsing,
+    manualBankOtpSent, setManualBankOtpSent,
+    manualBankOtp, setManualBankOtp,
+    manualBankOtpVerified, setManualBankOtpVerified,
+    manualBankOtpError, setManualBankOtpError,
     
     // Verification State
     verificationRunning, setVerificationRunning,

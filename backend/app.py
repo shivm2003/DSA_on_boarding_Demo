@@ -44,7 +44,8 @@ logger = logging.getLogger("dsa-portal")
 
 # ─── File Upload Config ──────────────────────────────────────────────────────
 
-UPLOAD_DIR = Path("uploads")
+BASE_DIR = Path(__file__).resolve().parent
+UPLOAD_DIR = BASE_DIR / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25 MB

@@ -98,10 +98,10 @@ const Step1Documents = ({
 
         <div className="file-upload-row">
           <div className={`file-upload-zone${fileUploaded ? ' has-file' : ''}`}>
-            {docParseStatus.addressProofUpload === 'parsing' ? (
+            {docParseStatus.addressProofUpload === 'parsing' || docParseStatus.addressProofUpload === 'validating' ? (
               <div className="flex flex-col items-center justify-center text-muted" style={{ padding: '1rem' }}>
-                <Loader2 size={32} className="spin mb-2" />
-                <p>Parsing document...</p>
+                {docParseStatus.addressProofUpload === 'parsing' && <Loader2 size={32} className="spin mb-2" />}
+                <p>{docParseStatus.addressProofUpload === 'parsing' ? 'Parsing document...' : 'Validating...'}</p>
               </div>
             ) : (
               <>
@@ -169,10 +169,10 @@ const Step1Documents = ({
         </div>
         <div className="file-upload-row">
           <div className={`file-upload-zone${fileUploaded ? ' has-file' : ''}`}>
-            {docParseStatus[fieldKey] === 'parsing' ? (
+            {docParseStatus[fieldKey] === 'parsing' || docParseStatus[fieldKey] === 'validating' ? (
               <div className="flex flex-col items-center justify-center text-muted" style={{ padding: '1rem' }}>
-                <Loader2 size={32} className="spin mb-2" />
-                <p>Parsing document...</p>
+                {docParseStatus[fieldKey] === 'parsing' && <Loader2 size={32} className="spin mb-2" />}
+                <p>{docParseStatus[fieldKey] === 'parsing' ? 'Parsing document...' : 'Validating...'}</p>
               </div>
             ) : (
               <>

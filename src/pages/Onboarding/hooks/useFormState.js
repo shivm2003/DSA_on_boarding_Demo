@@ -31,7 +31,8 @@ export const useFormState = () => {
     parsedDocuments: {},
 
     partnerUploads: [],
-    payoutOption: 'A',
+    payoutOption: '0.50',
+    payoutApprovalUpload: null,
     paymentMode: '',
     paymentPhoneNumber: '',
     paymentOtpSent: false,

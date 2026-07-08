@@ -92,6 +92,7 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
   const getPhotoUrl = (fileField) => {
     if (!fileField) return null;
     const file = Array.isArray(fileField) ? fileField[0] : fileField;
+    if (file.url) return file.url;
     if (file instanceof File || file instanceof Blob) {
       return URL.createObjectURL(file);
     }
@@ -327,7 +328,8 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
             </div>
           </div>
 
-          <div style={{ display: 'none' }}>
+          <div className="inline-forms-container mt-6 border rounded p-4 bg-white shadow-sm" style={{ maxHeight: '800px', overflowY: 'auto' }}>
+            <h3 className="mb-4 text-xl font-bold border-b pb-2">Application Form Preview</h3>
             <div className="app-form" ref={appFormRef}>
               {/* Header with Logo */}
               <div className="app-form-header">
@@ -566,7 +568,8 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
             </div>
 
           {/* ─── Section D: RCU Form ─── */}
-          <div className="rcu-form-wrapper">
+          <div className="rcu-form-wrapper mt-8 border-t pt-8">
+            <h3 className="mb-4 text-xl font-bold border-b pb-2">RCU Report Preview</h3>
             <div className="rcu-form" ref={rcuFormRef}>
               {/* RCU Header */}
               <div className="rcu-header" style={{ position: 'relative' }}>

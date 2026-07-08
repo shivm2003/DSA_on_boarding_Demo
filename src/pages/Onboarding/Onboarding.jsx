@@ -49,8 +49,13 @@ const Onboarding = () => {
     handleInputChange, handleSendPhoneOtp, handleVerifyPhoneOtp, handleSendAltPhoneOtp, handleVerifyAltPhoneOtp,
     handleSendEmailOtp, handleVerifyEmailOtp, handleMultiSelectChange, removeSelectedState,
     handleEntityTypeChange, handleNumberOfPartnersChange, handlePartnerDetailChange, bankingMode, setBankingMode,
-    setManualBankParsing, setAaLinkSent, setAaPhone, aaPhone, aaLinkSent, aaAccountNumber,
-    setAaAccountNumber, pennyDropDone, setPennyDropDone, manualBankParsing, handlePayoutSelection,
+    setManualBankParsing, setAaLinkSent, setAaPhone, aaPhone, aaLinkSent, 
+    aaStatusChecked, setAaStatusChecked, aaMaskedAccount, setAaMaskedAccount,
+    aaAccountNumber, setAaAccountNumber, 
+    aaBankOtpSent, setAaBankOtpSent, aaBankOtp, setAaBankOtp, aaBankOtpVerified, setAaBankOtpVerified, aaBankOtpError, setAaBankOtpError,
+    pennyDropDone, setPennyDropDone, manualBankParsing,
+    manualBankOtpSent, setManualBankOtpSent, manualBankOtp, setManualBankOtp, manualBankOtpVerified, setManualBankOtpVerified, manualBankOtpError, setManualBankOtpError,
+    handlePayoutSelection,
     handlePaymentModeSelection, handleSendOtp,
     prevStep, handleNextStep, handleFinalSubmit, verificationModalData, setVerificationModalData,
     handleApproveAndMap, renderVerificationTag, step1Error,
@@ -212,10 +217,30 @@ const Onboarding = () => {
             setAaPhone={setAaPhone} 
             aaPhone={aaPhone} 
             aaLinkSent={aaLinkSent} 
+            aaStatusChecked={aaStatusChecked}
+            setAaStatusChecked={setAaStatusChecked}
+            aaMaskedAccount={aaMaskedAccount}
+            setAaMaskedAccount={setAaMaskedAccount}
             aaAccountNumber={aaAccountNumber}
             setAaAccountNumber={setAaAccountNumber}
+            aaBankOtpSent={aaBankOtpSent}
+            setAaBankOtpSent={setAaBankOtpSent}
+            aaBankOtp={aaBankOtp}
+            setAaBankOtp={setAaBankOtp}
+            aaBankOtpVerified={aaBankOtpVerified}
+            setAaBankOtpVerified={setAaBankOtpVerified}
+            aaBankOtpError={aaBankOtpError}
+            setAaBankOtpError={setAaBankOtpError}
             pennyDropDone={pennyDropDone} 
             setPennyDropDone={setPennyDropDone}
+            manualBankOtpSent={manualBankOtpSent}
+            setManualBankOtpSent={setManualBankOtpSent}
+            manualBankOtp={manualBankOtp}
+            setManualBankOtp={setManualBankOtp}
+            manualBankOtpVerified={manualBankOtpVerified}
+            setManualBankOtpVerified={setManualBankOtpVerified}
+            manualBankOtpError={manualBankOtpError}
+            setManualBankOtpError={setManualBankOtpError}
             handleInputChange={handleInputChange} 
             verificationCompleted={verificationCompleted} 
           />

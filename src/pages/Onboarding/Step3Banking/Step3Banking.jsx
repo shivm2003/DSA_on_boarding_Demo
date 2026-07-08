@@ -11,10 +11,30 @@ const Step3Banking = ({
   setAaPhone,
   aaPhone,
   aaLinkSent,
+  aaStatusChecked,
+  setAaStatusChecked,
+  aaMaskedAccount,
+  setAaMaskedAccount,
   aaAccountNumber,
   setAaAccountNumber,
+  aaBankOtpSent,
+  setAaBankOtpSent,
+  aaBankOtp,
+  setAaBankOtp,
+  aaBankOtpVerified,
+  setAaBankOtpVerified,
+  aaBankOtpError,
+  setAaBankOtpError,
   pennyDropDone,
   setPennyDropDone,
+  manualBankOtpSent,
+  setManualBankOtpSent,
+  manualBankOtp,
+  setManualBankOtp,
+  manualBankOtpVerified,
+  setManualBankOtpVerified,
+  manualBankOtpError,
+  setManualBankOtpError,
   handleInputChange,
   verificationCompleted
 }) => {
@@ -82,52 +102,104 @@ const Step3Banking = ({
                       <p>Please approve the consent on your mobile device.</p>
                     </div>
                   </div>
-                  <div className="section-divider"></div>
-                  <h4 className="mb-3">Penny Drop Verification</h4>
-                  <p className="text-sm text-muted mb-4">Enter your account number for penny drop verification.</p>
-                  <div className="form-grid">
-                    <div className="input-group">
-                      <label>Account Number <span className="text-error">*</span></label>
-                      <input
-                        type="text"
-                        placeholder="Enter account number"
-                        value={aaAccountNumber}
-                        onChange={(e) => setAaAccountNumber(e.target.value)}
-                      />
-                    </div>
-                    <div className="input-group">
-                      <label>IFSC Code <span className="text-error">*</span></label>
-                      <input
-                        type="text"
-                        placeholder="Enter IFSC code"
-                        name="ifscCode"
-                        value={formData.ifscCode}
-                        onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.ifscCode}
-                      />
-                    </div>
-                  </div>
-                  <button
-                    className="btn btn-primary mt-4"
-                    disabled={!aaAccountNumber || pennyDropDone}
-                    onClick={() => {
-                      setPennyDropDone(true);
-                      setFormData(prev => ({
-                        ...prev,
-                        accountNumber: aaAccountNumber,
-                        bankName: 'Auto-Verified Bank'
-                      }));
-                    }}
-                  >
-                    {pennyDropDone ? '✓ Penny Drop Verified' : 'Verify via Penny Drop'}
-                  </button>
-                  {pennyDropDone && (
-                    <div className="success-banner animate-fade-in mt-4">
-                      <CheckCircle className="text-success" size={20} />
-                      <div>
-                        <strong>Penny Drop Successful!</strong>
-                        <p>Account {aaAccountNumber} has been verified.</p>
+                  {!aaStatusChecked ? (
+                    <button
+                      className="btn btn-primary mt-4"
+                      onClick={() => {
+                        setAaStatusChecked(true);
+                        setAaMaskedAccount('XXXXXXXXXXXXX6552');
+                      }}
+                    >
+                      Check Status
+                    </button>
+                  ) : (
+                    <>
+                      <div className="section-divider"></div>
+                      <h4 className="mb-3">Bank Account Verification</h4>
+                      <p className="text-sm text-muted mb-4">Enter your full account number to match with the Account Aggregator.</p>
+                      
+                      <div className="form-grid">
+                        <div className="input-group">
+                          <label>Fetched Account <span className="text-error">*</span></label>
+                          <input type="text" value={aaMaskedAccount} disabled style={{ background: 'var(--bg-color)' }} />
+                        </div>
+                        <div className="input-group">
+                          <label>Enter Account Number <span className="text-error">*</span></label>
+                          <input
+                            type="text"
+                            placeholder="Enter account number"
+                            value={aaAccountNumber}
+                            onChange={(e) => setAaAccountNumber(e.target.value)}
+                            disabled={pennyDropDone}
+                          />
+                        </div>
                       </div>
-                    </div>
+
+                      {!pennyDropDone && aaAccountNumber.length > 3 && (
+                        aaMaskedAccount.slice(-4) !== aaAccountNumber.slice(-4) ? (
+                          <p className="text-error text-sm mt-2">Account number last 4 digits do not match.</p>
+                        ) : (
+                          <div className="mt-4 p-4 border rounded bg-white">
+                            <h5 className="mb-3 font-semibold">Account Matched! Verify via OTP</h5>
+                            <p className="text-sm text-muted mb-3">Send OTP to DSA registered number for final verification.</p>
+                            {!aaBankOtpSent ? (
+                              <button
+                                className="btn btn-primary"
+                                onClick={() => {
+                                  setAaBankOtpSent(true);
+                                  setAaBankOtpError('');
+                                }}
+                              >
+                                Send OTP
+                              </button>
+                            ) : (
+                              <div className="flex gap-2 items-start flex-col">
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Enter OTP"
+                                    value={aaBankOtp}
+                                    onChange={(e) => setAaBankOtp(e.target.value)}
+                                    maxLength={5}
+                                    className="p-2 border rounded"
+                                  />
+                                  <button
+                                    className="btn btn-primary"
+                                    onClick={() => {
+                                      if (aaBankOtp === '12345') {
+                                        setAaBankOtpVerified(true);
+                                        setAaBankOtpError('');
+                                        setPennyDropDone(true);
+                                        setFormData(prev => ({
+                                          ...prev,
+                                          accountNumber: aaAccountNumber,
+                                          bankName: 'Auto-Verified Bank'
+                                        }));
+                                      } else {
+                                        setAaBankOtpError('Invalid OTP. Please use 12345.');
+                                      }
+                                    }}
+                                  >
+                                    Verify OTP
+                                  </button>
+                                </div>
+                                {aaBankOtpError && <p className="text-error text-sm">{aaBankOtpError}</p>}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      )}
+
+                      {pennyDropDone && (
+                        <div className="success-banner animate-fade-in mt-4">
+                          <CheckCircle className="text-success" size={20} />
+                          <div>
+                            <strong>Account Verified!</strong>
+                            <p>Account {aaAccountNumber} has been successfully verified via OTP.</p>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -182,6 +254,63 @@ const Step3Banking = ({
                     <input type="text" name="ifscCode" value={formData.ifscCode} onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.ifscCode} className={formData.ifscCode ? 'prefilled' : ''} />
                   </div>
                 </div>
+
+                {/* OTP Verification for Manual Banking */}
+                <div className="section-divider mt-4"></div>
+                <h4 className="mb-3">Verify Bank Account</h4>
+                <p className="text-sm text-muted mb-4">Send OTP to DSA registered number for final verification.</p>
+                
+                {!manualBankOtpSent ? (
+                  <button
+                    className="btn btn-primary"
+                    disabled={!formData.accountNumber || !formData.ifscCode || manualBankOtpVerified}
+                    onClick={() => {
+                      setManualBankOtpSent(true);
+                      setManualBankOtpError('');
+                    }}
+                  >
+                    {manualBankOtpVerified ? 'Verified' : 'Send OTP'}
+                  </button>
+                ) : (
+                  !manualBankOtpVerified ? (
+                    <div className="flex gap-2 items-start flex-col">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Enter OTP"
+                          value={manualBankOtp}
+                          onChange={(e) => setManualBankOtp(e.target.value)}
+                          maxLength={5}
+                          className="p-2 border rounded"
+                        />
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => {
+                            if (manualBankOtp === '12345') {
+                              setManualBankOtpVerified(true);
+                              setManualBankOtpError('');
+                            } else {
+                              setManualBankOtpError('Invalid OTP. Please use 12345.');
+                            }
+                          }}
+                        >
+                          Verify OTP
+                        </button>
+                      </div>
+                      {manualBankOtpError && <p className="text-error text-sm">{manualBankOtpError}</p>}
+                    </div>
+                  ) : null
+                )}
+
+                {manualBankOtpVerified && (
+                  <div className="success-banner animate-fade-in mt-4">
+                    <CheckCircle className="text-success" size={20} />
+                    <div>
+                      <strong>Account Verified!</strong>
+                      <p>Bank account has been successfully verified via OTP.</p>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
