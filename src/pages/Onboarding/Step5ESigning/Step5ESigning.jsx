@@ -107,7 +107,7 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
   const getMissingFields = () => {
     const missing = [];
     if (!formData.companyName) missing.push({ key: 'companyName', label: 'Company / Vendor Name', type: 'text' });
-    if (!formData.dateOfInc) missing.push({ key: 'dateOfInc', label: 'Date of Incorporation / DOB', type: 'date' });
+    if (isNonIndividual && !formData.dateOfInc) missing.push({ key: 'dateOfInc', label: 'Date of Incorporation', type: 'date' });
     if (!formData.registeredAddress) missing.push({ key: 'registeredAddress', label: 'Registered Address', type: 'text' });
     if (!formData.pincode) missing.push({ key: 'pincode', label: 'Pincode', type: 'text', maxLength: 6 });
     if (!formData.state) missing.push({ key: 'state', label: 'State', type: 'text' });
@@ -357,7 +357,7 @@ const Step5ESigning = ({ formData, setFormData, handleInputChange }) => {
                   {renderField('Company / Vendor Name', formData.companyName, true)}
                   {renderField('Entity Type', formData.entityType, true)}
                   {renderField('Vendor Category', formData.vendorCategory)}
-                  {renderField('Date of Incorporation / DOB', formData.dateOfInc)}
+                  {isNonIndividual && renderField('Date of Incorporation', formData.dateOfInc)}
                   {isNonIndividual && renderField('Number of Partners/Directors', formData.numberOfPartners)}
                   {renderField('CIN', formData.cin)}
                 </div>

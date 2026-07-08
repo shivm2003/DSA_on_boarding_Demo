@@ -4,7 +4,13 @@ import { NavLink } from 'react-router-dom';
 import './Dashboard.css';
 
 // Remove predefined sample data; component will render real data from API in future
-const RECENT_APPLICATIONS = [];
+const RECENT_APPLICATIONS = [
+  { id: 'APP-10024', name: 'Sharma Financial Services', date: 'Oct 24, 2023', status: 'Approved' },
+  { id: 'APP-10023', name: 'Elite Wealth Partners', date: 'Oct 23, 2023', status: 'Pending' },
+  { id: 'APP-10022', name: 'NextGen Advisors', date: 'Oct 22, 2023', status: 'Query Raised' },
+  { id: 'APP-10021', name: 'TrustLink Capital', date: 'Oct 20, 2023', status: 'Approved' },
+  { id: 'APP-10020', name: 'Visionary Finance Group', date: 'Oct 19, 2023', status: 'Pending' }
+];
 
 const TOP_PERFORMERS = [];
 

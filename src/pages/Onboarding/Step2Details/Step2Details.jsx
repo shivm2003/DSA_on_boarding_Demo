@@ -109,7 +109,7 @@ const Step2Details = ({
       {isVerificationLocked && (
         <div className="locked-overlay">Verification complete. Pages 1–4 are read-only after verification.</div>
       )}
-      
+
       {/* Company / Vendor Details Section */}
       <h3 className="section-subheading">Company / Vendor Details</h3>
       <div className="form-grid">
@@ -135,15 +135,17 @@ const Step2Details = ({
           </div>
         )}
 
-        <div className="input-group">
-          <label>Date of Incorporation / DOB <span className="text-error">*</span></label>
-          <input
-            type="date"
-            name="dateOfInc"
-            value={formData.dateOfInc}
-            onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.dateOfInc}
-          />
-        </div>
+        {formData.entityType !== 'Individual' && (
+          <div className="input-group">
+            <label>Date of Incorporation <span className="text-error">*</span></label>
+            <input
+              type="date"
+              name="dateOfInc"
+              value={formData.dateOfInc}
+              onChange={handleInputChange} disabled={verificationCompleted || !!formData.lockedFields?.dateOfInc}
+            />
+          </div>
+        )}
 
 
       </div>
@@ -354,7 +356,7 @@ const Step2Details = ({
           {formData.phoneOtpError && <p className="text-error text-sm">{formData.phoneOtpError}</p>}
           {formData.phoneVerified && <p className="text-success text-sm">Phone verified successfully.</p>}
         </div>
-        
+
 
       </div>
 
