@@ -23,17 +23,77 @@ const Step2Details = ({
   const [lastLookedUp, setLastLookedUp] = useState({ main: '', ref1: '', ref2: '' });
   const [dbStates, setDbStates] = useState([]);
   const [dbBranches, setDbBranches] = useState([]);
+  const [hasBranchState, setHasBranchState] = useState(false);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/branches/states')
+    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const storedBranchName = storedUser.branch_name?.trim() || storedUser.branchName?.trim();
+    const token = sessionStorage.getItem('token');
+
+    const fetchBranchStates = (branchName) => {
+      fetch(`http://localhost:5000/api/branches?branch_name=${encodeURIComponent(branchName)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'Success' && Array.isArray(data.data)) {
+            const stateValues = Array.from(new Set(
+              data.data
+                .map(item => typeof item === 'string' ? item : item.branch_state)
+                .filter(Boolean)
+            ));
+
+            setDbStates(stateValues);
+            setHasBranchState(stateValues.length > 0);
+
+            if (stateValues.length > 0) {
+              setFormData(prev => ({
+                ...prev,
+                serviceState: prev.serviceState && prev.serviceState.length > 0 ? prev.serviceState : stateValues
+              }));
+            }
+          } else {
+            setDbStates([]);
+            setHasBranchState(false);
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching branch states:', err);
+          setDbStates([]);
+          setHasBranchState(false);
+        });
+    };
+
+    if (storedBranchName) {
+      fetchBranchStates(storedBranchName);
+      return;
+    }
+
+    if (!token) {
+      setDbStates([]);
+      setHasBranchState(false);
+      return;
+    }
+
+    fetch('http://localhost:5000/api/auth/me', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
       .then(res => res.json())
       .then(data => {
-        if (data.status === 'Success') {
-          setDbStates(data.data);
+        const fetchedBranchName = data?.user?.branch_name?.trim() || data?.user?.branchName?.trim();
+        if (fetchedBranchName) {
+          fetchBranchStates(fetchedBranchName);
+        } else {
+          setDbStates([]);
+          setHasBranchState(false);
         }
       })
-      .catch(err => console.error('Error fetching branch states:', err));
-  }, []);
+      .catch(err => {
+        console.error('Error fetching current user auth profile:', err);
+        setDbStates([]);
+        setHasBranchState(false);
+      });
+  }, [setFormData]);
 
   useEffect(() => {
     const states = formData.serviceState?.join(',');
@@ -255,8 +315,8 @@ const Step2Details = ({
             const clickedOptions = Array.from(e.target.selectedOptions).map(opt => opt.value);
             const newStates = Array.from(new Set([...(formData.serviceState || []), ...clickedOptions]));
             setFormData(prev => ({ ...prev, serviceState: newStates }));
-          }} disabled={verificationCompleted} style={{ height: '100px' }}>
-            {dbStates.length > 0 ? dbStates.map(s => <option key={s} value={s}>{s}</option>) : INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+          }} disabled={verificationCompleted || !hasBranchState} style={{ height: '100px' }}>
+            {hasBranchState ? dbStates.map(s => <option key={s} value={s}>{s}</option>) : <option value="">No mapped branch state</option>}
           </select>
           {formData.serviceState && formData.serviceState.length > 0 && (
             <div className="selected-states mt-2" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>

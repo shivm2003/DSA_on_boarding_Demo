@@ -143,8 +143,13 @@ def get_branch_states():
 def get_branches():
     from models import BranchMapping
     states_param = request.args.get('states')
+    branch_name_param = request.args.get('branch_name')
     query = db.session.query(BranchMapping.branch_name, BranchMapping.branch_state)
     
+    if branch_name_param:
+        branch_name_clean = branch_name_param.strip().lower()
+        query = query.filter(func.lower(func.trim(BranchMapping.branch_name)) == branch_name_clean)
+
     if states_param:
         state_list = [s.strip() for s in states_param.split(',')]
         query = query.filter(BranchMapping.branch_state.in_(state_list))
