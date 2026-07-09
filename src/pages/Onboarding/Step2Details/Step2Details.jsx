@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { INDIAN_STATES } from '../constants';
 
 const Step2Details = ({
@@ -9,18 +9,14 @@ const Step2Details = ({
   handleInputChange,
   handleSendPhoneOtp,
   handleVerifyPhoneOtp,
-  handleSendAltPhoneOtp,
-  handleVerifyAltPhoneOtp,
   handleSendEmailOtp,
   handleVerifyEmailOtp,
-  handleMultiSelectChange,
   removeSelectedState,
-  handleEntityTypeChange,
   handleNumberOfPartnersChange,
   handlePartnerDetailChange
 }) => {
   const [pincodeLookupStatus, setPincodeLookupStatus] = useState({ main: '', ref1: '', ref2: '' });
-  const [lastLookedUp, setLastLookedUp] = useState({ main: '', ref1: '', ref2: '' });
+  const lastLookedUpRef = useRef({ main: '', ref1: '', ref2: '' });
   const [dbStates, setDbStates] = useState([]);
   const [dbBranches, setDbBranches] = useState([]);
   const [hasBranchState, setHasBranchState] = useState(false);
@@ -51,14 +47,18 @@ const Step2Details = ({
               }));
             }
           } else {
-            setDbStates([]);
-            setHasBranchState(false);
+            queueMicrotask(() => {
+              setDbStates([]);
+              setHasBranchState(false);
+            });
           }
         })
         .catch(err => {
           console.error('Error fetching branch states:', err);
-          setDbStates([]);
-          setHasBranchState(false);
+          queueMicrotask(() => {
+            setDbStates([]);
+            setHasBranchState(false);
+          });
         });
     };
 
@@ -68,8 +68,10 @@ const Step2Details = ({
     }
 
     if (!token) {
-      setDbStates([]);
-      setHasBranchState(false);
+      queueMicrotask(() => {
+        setDbStates([]);
+        setHasBranchState(false);
+      });
       return;
     }
 
@@ -84,14 +86,18 @@ const Step2Details = ({
         if (fetchedBranchName) {
           fetchBranchStates(fetchedBranchName);
         } else {
-          setDbStates([]);
-          setHasBranchState(false);
+          queueMicrotask(() => {
+            setDbStates([]);
+            setHasBranchState(false);
+          });
         }
       })
       .catch(err => {
         console.error('Error fetching current user auth profile:', err);
-        setDbStates([]);
-        setHasBranchState(false);
+        queueMicrotask(() => {
+          setDbStates([]);
+          setHasBranchState(false);
+        });
       });
   }, [setFormData]);
 
@@ -107,7 +113,7 @@ const Step2Details = ({
         })
         .catch(err => console.error('Error fetching branches:', err));
     } else {
-      setDbBranches([]);
+      queueMicrotask(() => setDbBranches([]));
     }
   }, [formData.serviceState]);
 
@@ -144,25 +150,25 @@ const Step2Details = ({
   }, [setFormData]);
 
   useEffect(() => {
-    if (formData.pincode?.length === 6 && formData.pincode !== lastLookedUp.main) {
-      setLastLookedUp(prev => ({ ...prev, main: formData.pincode }));
+    if (formData.pincode?.length === 6 && formData.pincode !== lastLookedUpRef.current.main) {
+      lastLookedUpRef.current = { ...lastLookedUpRef.current, main: formData.pincode };
       lookupPincode(formData.pincode, 'state', 'city', 'main');
     }
-  }, [formData.pincode, lastLookedUp.main, lookupPincode]);
+  }, [formData.pincode, lookupPincode]);
 
   useEffect(() => {
-    if (formData.ref1Pincode?.length === 6 && formData.ref1Pincode !== lastLookedUp.ref1) {
-      setLastLookedUp(prev => ({ ...prev, ref1: formData.ref1Pincode }));
+    if (formData.ref1Pincode?.length === 6 && formData.ref1Pincode !== lastLookedUpRef.current.ref1) {
+      lastLookedUpRef.current = { ...lastLookedUpRef.current, ref1: formData.ref1Pincode };
       lookupPincode(formData.ref1Pincode, 'ref1State', 'ref1City', 'ref1');
     }
-  }, [formData.ref1Pincode, lastLookedUp.ref1, lookupPincode]);
+  }, [formData.ref1Pincode, lookupPincode]);
 
   useEffect(() => {
-    if (formData.ref2Pincode?.length === 6 && formData.ref2Pincode !== lastLookedUp.ref2) {
-      setLastLookedUp(prev => ({ ...prev, ref2: formData.ref2Pincode }));
+    if (formData.ref2Pincode?.length === 6 && formData.ref2Pincode !== lastLookedUpRef.current.ref2) {
+      lastLookedUpRef.current = { ...lastLookedUpRef.current, ref2: formData.ref2Pincode };
       lookupPincode(formData.ref2Pincode, 'ref2State', 'ref2City', 'ref2');
     }
-  }, [formData.ref2Pincode, lastLookedUp.ref2, lookupPincode]);
+  }, [formData.ref2Pincode, lookupPincode]);
 
   return (
     <div className={`step-content animate-fade-in${isVerificationLocked ? ' locked-step' : ''}`} inert={isVerificationLocked ? "" : undefined}>

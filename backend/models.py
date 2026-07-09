@@ -12,6 +12,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(50), nullable=False, default='channel-manager')
     display_name = db.Column(db.String(255))
+    branch_name = db.Column(db.String(255))
     dob = db.Column(db.String(20))
     mobile = db.Column(db.String(20))
     reset_otp = db.Column(db.String(10))
@@ -30,6 +31,7 @@ class User(db.Model):
             'username': self.username,
             'role': self.role,
             'display_name': self.display_name,
+            'branch_name': self.branch_name,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 

@@ -1,7 +1,14 @@
 import csv
+from pathlib import Path
 from sqlalchemy import text
 from app import app, db
-from models import BranchMapping
+from models import BranchMapping, StatePin
+
+BASE_DIR = Path(__file__).resolve().parent
+REPO_ROOT = BASE_DIR.parent
+BRANCH_MAPPING_FILE = REPO_ROOT / "Mapping" / "Branch Update.csv"
+STATE_PIN_FILE = REPO_ROOT / "Mapping" / "Statepin.csv"
+
 
 def update_branch_mapping(filepath):
     print(f"Updating Branch Mapping from {filepath}...")
@@ -39,6 +46,36 @@ def update_branch_mapping(filepath):
         db.session.commit()
         print("Branch Mapping updated successfully.")
 
+
+def update_state_pin(filepath):
+    print(f"Updating State PIN data from {filepath}...")
+    with app.app_context():
+        db.session.query(StatePin).delete()
+
+        with open(filepath, 'r', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                pin_id = row.get('id', '').strip()
+                if not pin_id:
+                    continue
+                state_pin = StatePin(
+                    id=int(pin_id),
+                    state=row.get('state', '').strip()[:255],
+                    district=row.get('district', '').strip()[:255],
+                    city=row.get('city', '').strip()[:255],
+                    pincode=row.get('pincode', '').strip()[:20],
+                    state_code=row.get('state_code', '').strip()[:20],
+                    location_type=row.get('location_type', '').strip()[:100],
+                )
+                db.session.add(state_pin)
+        db.session.commit()
+        print("State PIN data updated successfully.")
+
+
+def update_all():
+    update_branch_mapping(BRANCH_MAPPING_FILE)
+    update_state_pin(STATE_PIN_FILE)
+
+
 if __name__ == '__main__':
-    branch_mapping_file = r'D:\Development\DSA\Mapping\Branch Update.csv'
-    update_branch_mapping(branch_mapping_file)
+    update_all()
